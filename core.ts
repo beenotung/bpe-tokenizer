@@ -5,10 +5,8 @@ export type Token = {
   /** @description the weight before merge */
   original_weight: number
   code: string
-  /** @description including zero-weight tokens */
+  /** @description including zero-weight tokens in token_table */
   index: number
-  /** @description excluding zero-weight tokens */
-  vector_index: number | null
 }
 
 /**
@@ -33,14 +31,23 @@ export class BPETokenizer {
   /** @description token.index -> Token */
   token_table: Token[] = []
 
-  /** @description token.vector_index -> Token */
-  vector_index_to_token: Token[] = []
-
   /** @description for export */
   merge_tokens: MergeToken[] = []
 
   /** @description for encode */
   merge_codes: MergeCode[] = []
+
+  /**
+   * @description for encode
+   * @description vector_index skip zero-weight tokens
+   * */
+  to_vector_index: number[] | null = null
+
+  /**
+   * @description for decode
+   * @description vector_index skip zero-weight tokens
+   * */
+  from_vector_index: number[] | null = null
 
   /** @description added by this.addContent() */
   corpus_in_code: string[] = []
@@ -63,6 +70,11 @@ export class BPETokenizer {
         ([a, b, c]) => [a.code, b.code, c.original_weight] as const,
       ),
     }
+  }
+
+  protected invalidateVectorIndex() {
+    this.to_vector_index = null
+    this.from_vector_index = null
   }
 
   fromJSON(json: ReturnType<(typeof this)['toJSON']>) {
@@ -90,7 +102,6 @@ export class BPETokenizer {
         original_weight: weight,
         code,
         index,
-        vector_index: null,
       }
       char_to_token[char] = token
       code_to_token[code] = token
@@ -107,11 +118,13 @@ export class BPETokenizer {
         original_weight: c_weight,
         code: new_code,
         index: new_index,
-        vector_index: null,
       }
       a.weight -= c_weight
       if (a != b) {
         b.weight -= c_weight
+      }
+      if (a.weight == 0 || b.weight == 0) {
+        this.invalidateVectorIndex()
       }
       char_to_token[c.chars] = c
       code_to_token[c.code] = c
@@ -135,7 +148,6 @@ export class BPETokenizer {
           original_weight: 1,
           code: code,
           index,
-          vector_index: null,
         }
         char_to_token[char] = token
         code_to_token[code] = token
@@ -150,13 +162,21 @@ export class BPETokenizer {
   }
 
   compactVectorIndex() {
-    let { vector_index_to_token } = this
+    let { token_table } = this
+    let token_count = token_table.length
+    if (token_count == 0) {
+      throw new Error(
+        `token table is empty, have you called tokenizer.addContent()?`,
+      )
+    }
+    let to_vector_index: number[] = (this.to_vector_index = [])
+    let from_vector_index: number[] = (this.from_vector_index = [])
     let vector_index = 0
-    vector_index_to_token.length = 0
-    for (let token of this.token_table) {
+    for (let index = 0; index < token_count; index++) {
+      let token = token_table[index]
       if (token.weight > 0) {
-        token.vector_index = vector_index
-        vector_index_to_token[vector_index] = token
+        to_vector_index[index] = vector_index
+        from_vector_index[vector_index] = index
         vector_index++
       }
     }
@@ -192,7 +212,6 @@ export class BPETokenizer {
               original_weight: 1,
               code: new_code,
               index: new_index,
-              vector_index: null,
             }
             b_c_tokens.set(b, c)
           } else {
@@ -232,6 +251,9 @@ export class BPETokenizer {
     a.weight -= c.weight
     if (a != b) {
       b.weight -= c.weight
+    }
+    if (a.weight == 0 || b.weight == 0) {
+      this.invalidateVectorIndex()
     }
 
     code_to_token[c.code] = c
@@ -290,23 +312,23 @@ export class BPETokenizer {
   }
 
   encodeToVector(content: string): number[] {
-    let { code_to_token } = this
+    let { code_to_token, to_vector_index } = this
+
+    if (!to_vector_index) {
+      this.compactVectorIndex()
+      to_vector_index = this.to_vector_index!
+    }
 
     let content_in_code = this.encodeToCode(content)
 
     let vector: number[] = []
     for (let code of content_in_code) {
-      let { vector_index } = code_to_token[code]
-      if (!vector_index) {
-        this.compactVectorIndex()
-        vector_index = code_to_token[code].vector_index
-        if (!vector_index) {
-          throw new Error(
-            'compactVectorIndex() not called before encoding or saving',
-          )
-        }
+      let index = code_to_token[code].index
+      if (index in to_vector_index) {
+        vector.push(to_vector_index[index])
+      } else {
+        throw new Error(`unknown token index: ${index}`)
       }
-      vector.push(vector_index)
     }
 
     return vector
@@ -321,10 +343,19 @@ export class BPETokenizer {
   }
 
   decodeVector(vector: number[]): string {
-    let { vector_index_to_token } = this
+    let { from_vector_index, token_table } = this
+    if (!from_vector_index) {
+      this.compactVectorIndex()
+      from_vector_index = this.from_vector_index!
+    }
     let content = ''
-    for (let index of vector) {
-      content += vector_index_to_token[index].chars
+    for (let vector_index of vector) {
+      if (vector_index in from_vector_index) {
+        let index = from_vector_index[vector_index]
+        content += token_table[index].chars
+      } else {
+        throw new Error(`unknown vector index: ${vector_index}`)
+      }
     }
     return content
   }

@@ -37,9 +37,7 @@ let vector = tokenizer.encodeToVector(content)
 let decoded_content_from_tokens = tokenizer.decodeTokens(tokens)
 let decoded_content_from_vector = tokenizer.decodeVector(vector)
 
-let used_tokens = tokenizer.token_table.filter(
-  token => token.vector_index != null,
-)
+let used_tokens = tokenizer.token_table.filter(token => token.weight > 0)
 
 console.log({
   // content,
