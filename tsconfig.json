@@ -5,11 +5,7 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "skipLibCheck": true,
-    "incremental": true,
-    "outDir": "dist"
+    "skipLibCheck": true
   },
-  "exclude": [
-    "dist"
-  ]
+  "exclude": ["dist"]
 }

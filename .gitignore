@@ -8,3 +8,5 @@ dist/
 .env
 *.tgz
 .DS_Store
+core-test.js
+core.js

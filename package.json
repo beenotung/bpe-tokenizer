@@ -1,15 +1,24 @@
 {
   "name": "bpe-tokenizer",
   "version": "0.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Build your own vocabulary from application-specific corpus using Byte pair encoding (BPE) algorithm.",
+  "keywords": [],
+  "author": {
+    "name": "Beeno Tung",
+    "email": "aabbcc1241@yahoo.com.hk",
+    "url": "https://beeno-tung.surge.sh"
+  },
+  "license": "BSD-2-Clause",
+  "main": "core.js",
+  "types": "core.d.ts",
+  "files": [
+    "core.d.ts",
+    "core.js"
+  ],
   "scripts": {
     "test": "tsc --noEmit",
     "build": "tsc -p ."
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
     "@types/node": "^20.11.19",
     "ts-node": "^10.9.2",

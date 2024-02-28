@@ -131,8 +131,8 @@ export class BPETokenizer {
     }
   }
 
-  encodeToTokens(content: string): Token[] {
-    let { char_to_token, code_to_token } = this
+  protected encodeToCode(content: string): string {
+    let { char_to_token } = this
 
     let content_in_code = ''
     for (let char of content) {
@@ -143,6 +143,14 @@ export class BPETokenizer {
       content_in_code = content_in_code.replaceAll(from_code, to_code)
     }
 
+    return content_in_code
+  }
+
+  encodeToTokens(content: string): Token[] {
+    let { code_to_token } = this
+
+    let content_in_code = this.encodeToCode(content)
+
     let tokens: Token[] = []
     for (let code of content_in_code) {
       tokens.push(code_to_token[code])
@@ -152,7 +160,16 @@ export class BPETokenizer {
   }
 
   encodeToVector(content: string): number[] {
-    return this.encodeToTokens(content).map(token => token.index)
+    let { code_to_token } = this
+
+    let content_in_code = this.encodeToCode(content)
+
+    let vector: number[] = []
+    for (let code of content_in_code) {
+      vector.push(code_to_token[code].index)
+    }
+
+    return vector
   }
 
   decodeTokens(tokens: Token[]): string {
