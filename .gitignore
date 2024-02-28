@@ -11,3 +11,4 @@ dist/
 *.js
 *.d.ts
 bpe-tokenizer.json
+tokens.json
