@@ -51,6 +51,36 @@ console.log({
 })
 ```
 
+## Typescript Signature
+
+```typescript
+export class BPETokenizer {
+  addContent(content: string): void
+
+  findNextMerge(): MergeToken | null
+  applyMerge(merge: MergeToken): void
+  mergeUntil(options?: { min_weight?: number }): void
+
+  encodeToTokens(content: string): Token[]
+  encodeToVector(content: string): number[]
+
+  decodeTokens(tokens: Token[]): string
+  decodeVector(vector: number[]): string
+}
+
+export type Token = {
+  chars: string
+  weight: number
+  code: string
+  index: number
+}
+
+/**
+ * @description a + b -> c, e.g. "app" + "le" -> "apple"
+ */
+export type MergeToken = [a: Token, b: Token, c: Token]
+```
+
 ## License
 
 This project is licensed with [BSD-2-Clause](./LICENSE)

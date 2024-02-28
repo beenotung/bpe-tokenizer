@@ -5,8 +5,14 @@ export type Token = {
   index: number
 }
 
-// a + b -> c, e.g. "app" + "le" -> "apple"
+/**
+ * @description a + b -> c, e.g. "app" + "le" -> "apple"
+ */
 export type MergeToken = [a: Token, b: Token, c: Token]
+
+/**
+ * @description replace a into b
+ */
 export type MergeCode = [a: string, b: string]
 
 export let EOF = String.fromCharCode(4)
