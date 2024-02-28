@@ -123,15 +123,13 @@ export class BPETokenizer {
       if (a != b) {
         b.weight -= c_weight
       }
-      if (a.weight == 0 || b.weight == 0) {
-        this.invalidateVectorIndex()
-      }
       char_to_token[c.chars] = c
       code_to_token[c.code] = c
       token_table[c.index] = c
       merge_tokens.push([a, b, c])
       merge_codes.push([a.code + b.code, c.code])
     }
+    this.compactVectorIndex()
   }
 
   addContent(content: string) {
@@ -194,9 +192,11 @@ export class BPETokenizer {
     let new_code = String.fromCodePoint(new_index)
 
     for (let sample_in_code of this.corpus_in_code) {
+      let last_a: Token | null = null
       let a: Token | null = null
       for (let code of sample_in_code) {
         let b = code_to_token[code]
+        debugger
         if (a) {
           let b_c_tokens = a_b_c_tokens.get(a)
           if (!b_c_tokens) {
@@ -216,14 +216,25 @@ export class BPETokenizer {
             b_c_tokens.set(b, c)
           } else {
             c.weight++
+            // if (a != b || a != last_a) {
+            //   c.weight++
+            // } else {
+            //   last_a = null
+            // }
           }
 
-          if (!max_c || c.weight > max_c.weight) {
+          if (
+            !max_c ||
+            c.weight > max_c.weight ||
+            (c.weight == max_c.weight &&
+              a.index + b.index < max_a!.index + max_b!.index)
+          ) {
             max_a = a
             max_b = b
             max_c = c
           }
         }
+        last_a = a
         a = b
       }
     }
@@ -232,10 +243,15 @@ export class BPETokenizer {
 
     max_c.original_weight = max_c.weight
 
+    console.log('next:', [max_a, max_b, max_c])
+
     return [max_a!, max_b!, max_c]
   }
 
   applyMerge(merge: MergeToken) {
+    console.log(
+      `merge "${merge[0].chars}" + "${merge[1].chars}" -> "${merge[2].chars}"`,
+    )
     let {
       code_to_token,
       token_table,

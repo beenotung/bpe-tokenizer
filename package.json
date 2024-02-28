@@ -29,7 +29,12 @@
     "build": "tsc -p ."
   },
   "devDependencies": {
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.19",
+    "chai": "^4.4.1",
+    "mocha": "^10.3.0",
+    "ts-mocha": "^10.0.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"

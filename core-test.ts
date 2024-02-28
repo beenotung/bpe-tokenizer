@@ -45,10 +45,11 @@ console.log({
   content: content.length,
   vector: vector.length,
   ratio: vector.length / content.length,
+  charset: Object.keys(tokenizer.char_to_token).length,
   all_tokens: tokenizer.token_table.length,
   used_tokens: used_tokens.length,
   // tokens,
-  // segments: tokens.map(token => token.chars),
+  segments: tokens.map(token => token.chars),
   // decoded_content,
   match:
     content == decoded_content_from_tokens &&
