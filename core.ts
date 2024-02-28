@@ -23,7 +23,6 @@ export class BPETokenizer {
 
   token_table: Token[] = []
 
-  merge_tokens: MergeToken[] = []
   merge_codes: MergeCode[] = []
 
   corpus_in_code: string[] = []
@@ -97,13 +96,7 @@ export class BPETokenizer {
   }
 
   applyMerge(merge: MergeToken) {
-    let {
-      code_to_token,
-      token_table,
-      merge_tokens,
-      merge_codes,
-      corpus_in_code,
-    } = this
+    let { code_to_token, token_table, merge_codes, corpus_in_code } = this
     let [a, b, c] = merge
 
     let from_code = a.code + b.code
@@ -117,7 +110,6 @@ export class BPETokenizer {
     code_to_token[c.code] = c
     token_table.push(c)
 
-    merge_tokens.push(merge)
     merge_codes.push([from_code, to_code])
 
     let corpus_count = corpus_in_code.length
