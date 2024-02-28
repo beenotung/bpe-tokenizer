@@ -1,16 +1,26 @@
 import { BPETokenizer } from './core'
-import fs from 'fs'
+import fs, { writeFileSync } from 'fs'
 
 let tokenizer = new BPETokenizer()
+
+let config_file = 'bpe-tokenizer.json'
 
 // let content = 'aaabdaaabac'
 let content = fs.readFileSync('core-test.ts').toString()
 
-// you can add this method multiple times to add more samples from application-specific corpus
-tokenizer.addContent(content)
+if (!fs.existsSync(config_file)) {
+  // you can add this method multiple times to add more samples from application-specific corpus
+  tokenizer.addContent(content)
 
-// you can set a higher threshold for the minimum number of occurrences
-tokenizer.mergeUntil({ min_weight: 2 })
+  // you can set a higher threshold for the minimum number of occurrences
+  tokenizer.mergeUntil({ min_weight: 2 })
+
+  // save the tokenizer model to file
+  writeFileSync(config_file, JSON.stringify(tokenizer))
+} else {
+  // load the tokenizer model from file
+  tokenizer.fromJSON(JSON.parse(fs.readFileSync(config_file).toString()))
+}
 
 // encode into object array for extended usage
 let tokens = tokenizer.encodeToTokens(content)

@@ -27,6 +27,31 @@ export class BPETokenizer {
 
   corpus_in_code: string[] = []
 
+  toJSON() {
+    return {
+      token_table: this.token_table,
+      merge_codes: this.merge_codes,
+    }
+  }
+
+  fromJSON(json: ReturnType<(typeof this)['toJSON']>) {
+    let newInstance = new BPETokenizer()
+    let { char_to_token, code_to_token, token_table } = newInstance
+    newInstance.merge_codes = json.merge_codes
+    Object.assign(this, newInstance)
+    for (let token of json.token_table) {
+      let char_count = 0
+      for (let char of token.chars) {
+        char_count++
+      }
+      if (char_count == 1) {
+        char_to_token[token.chars] = token
+      }
+      code_to_token[token.code] = token
+      token_table[token.index] = token
+    }
+  }
+
   addContent(content: string) {
     let { char_to_token, code_to_token, token_table } = this
     let sample_in_code = ''
