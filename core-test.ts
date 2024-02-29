@@ -10,7 +10,7 @@ let content = fs.readFileSync('core-test.ts').toString()
 
 if (!fs.existsSync(config_file)) {
   // you can add this method multiple times to add more samples from application-specific corpus
-  tokenizer.addContent(content)
+  tokenizer.addToCorpus(content)
 
   // you can set a higher threshold for the minimum number of occurrences
   tokenizer.mergeUntil({ min_weight: 2 })

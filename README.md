@@ -27,7 +27,7 @@ let tokenizer = new BPETokenizer()
 let content = 'aaabdaaabac'
 
 // you can add this method multiple times to add more samples from application-specific corpus
-tokenizer.addContent(content)
+tokenizer.addToCorpus(content)
 
 // you can set a higher threshold for the minimum number of occurrences
 tokenizer.mergeUntil({ min_weight: 2 })
@@ -65,7 +65,7 @@ export class BPETokenizer {
   }
   fromJSON(json: ReturnType<BPETokenizer['toJSON']>): void
 
-  addContent(content: string): void
+  addToCorpus(content: string): void
 
   findNextMerge(): MergeToken | null
   applyMerge(merge: MergeToken): void

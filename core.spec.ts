@@ -9,7 +9,7 @@ describe(`encode ${content_abc}`, () => {
     // merge "ab": "aa ab d aa ab a c"
     // merge "aaab": "aaab d aaab a c"
     let tokenizer = new BPETokenizer()
-    tokenizer.addContent(content_abc)
+    tokenizer.addToCorpus(content_abc)
     tokenizer.mergeUntil({ min_weight: 2 })
     expect(
       tokenizer
@@ -68,7 +68,7 @@ describe(`encode ${content_abc}`, () => {
      * 4 -> 7: aaab x 2
      */
     let tokenizer = new BPETokenizer()
-    tokenizer.addContent(content_abc)
+    tokenizer.addToCorpus(content_abc)
     tokenizer.mergeUntil({ min_weight: 2 })
     tokenizer.compactVectorIndex()
     expect(tokenizer.encodeToVector(content_abc)).to.deep.equal([4, 2, 4, 1, 3])
@@ -82,7 +82,7 @@ describe(`encode ${content_x}`, () => {
     //       merge x + x: "_ xx xx xx xx x _"
     //     merge xx + xx: "xxxx xxxx x"
     let tokenizer = new BPETokenizer()
-    tokenizer.addContent(content_x)
+    tokenizer.addToCorpus(content_x)
     tokenizer.mergeUntil({ min_weight: 2 })
     expect(
       tokenizer
@@ -119,7 +119,7 @@ describe(`encode ${content_x}`, () => {
      * 2 -> 3: XXXX x 2
      */
     let tokenizer = new BPETokenizer()
-    tokenizer.addContent(content_x)
+    tokenizer.addToCorpus(content_x)
     tokenizer.mergeUntil({ min_weight: 2 })
     tokenizer.compactVectorIndex()
     expect(tokenizer.encodeToVector(content_x)).to.deep.equal([2, 2, 1])
@@ -132,7 +132,7 @@ describe('JSON export / import', () => {
 
   it('should export to json', () => {
     let tokenizer = new BPETokenizer()
-    tokenizer.addContent(content_abc)
+    tokenizer.addToCorpus(content_abc)
     tokenizer.mergeUntil({ min_weight: 2 })
 
     expect(tokenizer.toJSON).not.undefined

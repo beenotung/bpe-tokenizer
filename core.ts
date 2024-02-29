@@ -49,7 +49,7 @@ export class BPETokenizer {
    * */
   from_vector_index: number[] | null = null
 
-  /** @description added by this.addContent() */
+  /** @description added by this.addToCorpus() */
   corpus_in_code: string[] = []
 
   toJSON() {
@@ -130,7 +130,7 @@ export class BPETokenizer {
     this.compactVectorIndex()
   }
 
-  addContent(content: string) {
+  addToCorpus(content: string) {
     let { char_to_token, code_to_token, token_table } = this
     let sample_in_code = ''
     for (let char of EOF + content + EOF) {
@@ -166,7 +166,7 @@ export class BPETokenizer {
     let token_count = token_table.length
     if (token_count == 0) {
       throw new Error(
-        `token table is empty, have you called tokenizer.addContent()?`,
+        `token table is empty, have you called tokenizer.addToCorpus()?`,
       )
     }
     let to_vector_index: number[] = (this.to_vector_index = [])
