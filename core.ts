@@ -157,6 +157,9 @@ export class BPETokenizer {
     this.corpus_in_code.push(sample_in_code)
   }
 
+  /**
+   * @description skip zero-weight tokens to reduce range of vector index
+   */
   compactVectorIndex() {
     let { token_table } = this
     let token_count = token_table.length

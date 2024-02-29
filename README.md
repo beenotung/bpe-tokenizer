@@ -32,6 +32,9 @@ tokenizer.addContent(content)
 // you can set a higher threshold for the minimum number of occurrences
 tokenizer.mergeUntil({ min_weight: 2 })
 
+// skip zero-weight tokens to reduce range of vector index
+tokenizer.compactVectorIndex()
+
 // encode into object array for extended usage
 let tokens = tokenizer.encodeToTokens(content)
 
@@ -55,11 +58,32 @@ console.log({
 
 ```typescript
 export class BPETokenizer {
+  /** @description token.index -> Token */
+  token_table: Token[]
+
+  toJSON(): {
+    version: number
+    token_table: [chars: string, weight: number][]
+    merge_codes: (readonly [string, string, number])[]
+  }
+  fromJSON(json: ReturnType<BPETokenizer['toJSON']>): void
+
   addContent(content: string): void
 
   findNextMerge(): MergeToken | null
   applyMerge(merge: MergeToken): void
-  mergeUntil(options?: { min_weight?: number }): void
+
+  mergeUntil(options?: {
+    /** @default 2 */
+    min_weight?: number
+    /** @default unlimited */
+    max_iterations?: number
+  }): void
+
+  /**
+   * @description skip zero-weight tokens to reduce range of vector index
+   */
+  compactVectorIndex(): void
 
   encodeToTokens(content: string): Token[]
   encodeToVector(content: string): number[]
@@ -70,8 +94,12 @@ export class BPETokenizer {
 
 export type Token = {
   chars: string
+  /** @description the weight after merge */
   weight: number
+  /** @description the weight before merge */
+  original_weight: number
   code: string
+  /** @description including zero-weight tokens in token_table */
   index: number
 }
 
