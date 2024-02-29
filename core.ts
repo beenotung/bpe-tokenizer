@@ -185,13 +185,12 @@ export class BPETokenizer {
   findNextMerge(): MergeToken | null {
     let { code_to_token } = this
 
-    // a -> b -> c (a+b)
-    let a_b_c_tokens = new Map<Token, Map<Token, Token>>()
+    // a -> b -> count
+    let a_b_c_weights = new Map<Token, Map<Token, number>>()
     let max_a: Token | null = null
     let max_b: Token | null = null
-    let max_c: Token | null = null
-    let new_index = this.token_table.length
-    let new_code = String.fromCodePoint(new_index)
+    let max_c_index: number | null = null
+    let max_c_weight: number | null = null
 
     for (let sample_in_code of this.corpus_in_code) {
       let last_a: Token | null = null
@@ -199,22 +198,16 @@ export class BPETokenizer {
       for (let code of sample_in_code) {
         let b = code_to_token[code]
         if (a) {
-          let b_c_tokens = a_b_c_tokens.get(a)
-          if (!b_c_tokens) {
-            b_c_tokens = new Map()
-            a_b_c_tokens.set(a, b_c_tokens)
+          let b_c_weights = a_b_c_weights.get(a)
+          if (!b_c_weights) {
+            b_c_weights = new Map()
+            a_b_c_weights.set(a, b_c_weights)
           }
 
-          let c = b_c_tokens.get(b)
-          if (!c) {
-            c = {
-              chars: a.chars + b.chars,
-              weight: 1,
-              original_weight: 1,
-              code: new_code,
-              index: new_index,
-            }
-            b_c_tokens.set(b, c)
+          let c_weight = b_c_weights.get(b)
+          if (!c_weight) {
+            b_c_weights.set(b, 1)
+            c_weight = 1
           } else {
             // avoid counting "X X X" as two occurrences of "X X"
             if (a == b && last_a == a) {
@@ -222,18 +215,20 @@ export class BPETokenizer {
               a = b
               continue
             }
-            c.weight++
+            c_weight++
+            b_c_weights.set(b, c_weight)
           }
+          let c_index = a.index + b.index
 
           if (
-            !max_c ||
-            c.weight > max_c.weight ||
-            (c.weight == max_c.weight &&
-              a.index + b.index < max_a!.index + max_b!.index)
+            !max_c_weight ||
+            c_weight > max_c_weight ||
+            (c_weight == max_c_weight && c_index < max_c_index!)
           ) {
             max_a = a
             max_b = b
-            max_c = c
+            max_c_weight = c_weight
+            max_c_index = c_index
           }
         }
         last_a = a
@@ -241,9 +236,17 @@ export class BPETokenizer {
       }
     }
 
-    if (!max_c) return null
+    if (!max_c_weight) return null
 
-    max_c.original_weight = max_c.weight
+    let new_index = this.token_table.length
+    let new_code = String.fromCodePoint(new_index)
+    let max_c: Token = {
+      chars: max_a!.chars + max_b!.chars,
+      weight: max_c_weight,
+      original_weight: max_c_weight,
+      code: new_code,
+      index: new_index,
+    }
 
     return [max_a!, max_b!, max_c]
   }
