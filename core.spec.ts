@@ -92,7 +92,7 @@ describe(`encode ${content_x}`, () => {
     ).to.deep.equal('xxxx xxxx x')
   })
 
-  it(`should encode "${content_x}" into vector [4 2 4 1 3]`, () => {
+  it(`should encode "${content_x}" into vector [2 2 1]`, () => {
     /**
      * initial:
      * becomes: "_ X X X X X X X X X _"
