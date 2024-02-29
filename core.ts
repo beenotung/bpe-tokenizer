@@ -196,7 +196,6 @@ export class BPETokenizer {
       let a: Token | null = null
       for (let code of sample_in_code) {
         let b = code_to_token[code]
-        debugger
         if (a) {
           let b_c_tokens = a_b_c_tokens.get(a)
           if (!b_c_tokens) {
@@ -215,12 +214,13 @@ export class BPETokenizer {
             }
             b_c_tokens.set(b, c)
           } else {
+            // avoid counting "X X X" as two occurrences of "X X"
+            if (a == b && last_a == a) {
+              last_a = null
+              a = b
+              continue
+            }
             c.weight++
-            // if (a != b || a != last_a) {
-            //   c.weight++
-            // } else {
-            //   last_a = null
-            // }
           }
 
           if (
@@ -243,15 +243,10 @@ export class BPETokenizer {
 
     max_c.original_weight = max_c.weight
 
-    console.log('next:', [max_a, max_b, max_c])
-
     return [max_a!, max_b!, max_c]
   }
 
   applyMerge(merge: MergeToken) {
-    console.log(
-      `merge "${merge[0].chars}" + "${merge[1].chars}" -> "${merge[2].chars}"`,
-    )
     let {
       code_to_token,
       token_table,
@@ -265,9 +260,7 @@ export class BPETokenizer {
     let to_code = c.code
 
     a.weight -= c.weight
-    if (a != b) {
-      b.weight -= c.weight
-    }
+    b.weight -= c.weight
     if (a.weight == 0 || b.weight == 0) {
       this.invalidateVectorIndex()
     }
