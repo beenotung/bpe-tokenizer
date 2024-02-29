@@ -1,6 +1,6 @@
 {
   "name": "bpe-tokenizer",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Build your own vocabulary from application-specific corpus using Byte pair encoding (BPE) algorithm.",
   "keywords": [
     "BPE",
