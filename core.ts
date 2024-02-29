@@ -279,6 +279,9 @@ export class BPETokenizer {
     }
   }
 
+  /**
+   * @description call `findNextMerge()` and `applyMerge()` in loop
+   */
   mergeUntil(options?: {
     /** @default 2 */
     min_weight?: number

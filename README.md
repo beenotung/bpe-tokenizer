@@ -70,6 +70,9 @@ export class BPETokenizer {
   findNextMerge(): MergeToken | null
   applyMerge(merge: MergeToken): void
 
+  /**
+   * @description call `findNextMerge()` and `applyMerge()` in loop
+   */
   mergeUntil(options?: {
     /** @default 2 */
     min_weight?: number
