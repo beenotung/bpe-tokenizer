@@ -8,5 +8,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "exclude": ["dist"]
+  "exclude": ["core.spec.ts", "core-test.ts"]
 }
