@@ -25,6 +25,7 @@
     "core.js"
   ],
   "scripts": {
+    "prepublishOnly": "npm test && npm run build",
     "clean": "rimraf *.js *.d.ts",
     "test": "run-s type-check clean mocha",
     "type-check": "tsc --noEmit",
