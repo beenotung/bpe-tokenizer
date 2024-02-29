@@ -77,7 +77,7 @@ export class BPETokenizer {
     this.from_vector_index = null
   }
 
-  fromJSON(json: ReturnType<(typeof this)['toJSON']>) {
+  fromJSON(json: ReturnType<BPETokenizer['toJSON']>) {
     if (
       json.version !== 1 ||
       !Array.isArray(json.token_table) ||
