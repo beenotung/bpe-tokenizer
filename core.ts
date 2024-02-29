@@ -275,9 +275,19 @@ export class BPETokenizer {
     }
   }
 
-  mergeUntil(options?: { min_weight?: number }) {
+  mergeUntil(options?: {
+    /** @default 2 */
+    min_weight?: number
+    /** @default unlimited */
+    max_iterations?: number
+  }) {
     let min_weight = options?.min_weight || 2
-    for (;;) {
+    let max_iterations = options?.max_iterations
+    for (
+      let iteration = 1;
+      max_iterations && iteration <= max_iterations;
+      iteration++
+    ) {
       let merge = this.findNextMerge()
       if (!merge) break
       let [_a, _b, c] = merge
