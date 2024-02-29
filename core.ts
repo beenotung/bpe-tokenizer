@@ -120,9 +120,7 @@ export class BPETokenizer {
         index: new_index,
       }
       a.weight -= c_weight
-      if (a != b) {
-        b.weight -= c_weight
-      }
+      b.weight -= c_weight
       char_to_token[c.chars] = c
       code_to_token[c.code] = c
       token_table[c.index] = c
