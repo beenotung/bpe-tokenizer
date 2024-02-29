@@ -125,3 +125,30 @@ describe(`encode ${content_x}`, () => {
     expect(tokenizer.encodeToVector(content_x)).to.deep.equal([2, 2, 1])
   })
 })
+
+describe('JSON export / import', () => {
+  let json = ''
+  let token_table: BPETokenizer['token_table']
+
+  it('should export to json', () => {
+    let tokenizer = new BPETokenizer()
+    tokenizer.addContent(content_abc)
+    tokenizer.mergeUntil({ min_weight: 2 })
+
+    expect(tokenizer.toJSON).not.undefined
+    json = JSON.stringify(tokenizer)
+    expect(json.length).greaterThan(0)
+
+    token_table = tokenizer.token_table
+    expect(token_table).not.undefined
+    expect(token_table.length).greaterThan(1)
+  })
+
+  it('should import from json', () => {
+    let tokenizer = new BPETokenizer()
+    debugger
+    tokenizer.fromJSON(JSON.parse(json))
+    debugger
+    expect(tokenizer.token_table).deep.equals(token_table)
+  })
+})
