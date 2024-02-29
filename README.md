@@ -32,9 +32,6 @@ tokenizer.addContent(content)
 // you can set a higher threshold for the minimum number of occurrences
 tokenizer.mergeUntil({ min_weight: 2 })
 
-// skip zero-weight tokens to reduce range of vector index
-tokenizer.compactVectorIndex()
-
 // encode into object array for extended usage
 let tokens = tokenizer.encodeToTokens(content)
 
@@ -81,7 +78,8 @@ export class BPETokenizer {
   }): void
 
   /**
-   * @description skip zero-weight tokens to reduce range of vector index
+   * @description skip zero-weight tokens to reduce range of vector index.
+   * Auto called by `encodeToVector()` and `decodeVector()`
    */
   compactVectorIndex(): void
 

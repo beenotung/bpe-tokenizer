@@ -158,7 +158,8 @@ export class BPETokenizer {
   }
 
   /**
-   * @description skip zero-weight tokens to reduce range of vector index
+   * @description skip zero-weight tokens to reduce range of vector index.
+   * Auto called by `encodeToVector()` and `decodeVector()`
    */
   compactVectorIndex() {
     let { token_table } = this
