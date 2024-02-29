@@ -292,7 +292,7 @@ export class BPETokenizer {
     let max_iterations = options?.max_iterations
     for (
       let iteration = 1;
-      max_iterations && iteration <= max_iterations;
+      !max_iterations || iteration <= max_iterations;
       iteration++
     ) {
       let merge = this.findNextMerge()
