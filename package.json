@@ -26,7 +26,7 @@
   ],
   "scripts": {
     "clean": "rimraf *.js *.d.ts",
-    "test": "run-p type-check mocha",
+    "test": "run-s type-check clean mocha",
     "type-check": "tsc --noEmit",
     "mocha": "ts-mocha core.spec.ts",
     "build": "run-s clean tsc",
