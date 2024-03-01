@@ -15,6 +15,11 @@ export type Token = {
 export type MergeToken = [a: Token, b: Token, c: Token]
 
 /**
+ * @description to be stored to file for restoring
+ */
+export type CompactMerge = [a_code: string, b_code: string, c_weight: number]
+
+/**
  * @description replace a into b
  */
 export type MergeCode = [a: string, b: string]
@@ -411,4 +416,34 @@ export class BPETokenizer {
     }
     return content
   }
+
+  /**
+   * @description restore merge produced from `compactMerge(this.findNextMerge())`.
+   * To be used after restart for continuous merging.
+   */
+  restoreMerge(compactMerge: CompactMerge) {
+    let [a_code, b_code, c_weight] = compactMerge
+    let a = this.code_to_token[a_code]
+    if (!a) throw new Error(`unknown token, a_code: ${JSON.stringify(a_code)}`)
+    let b = this.code_to_token[b_code]
+    if (!a) throw new Error(`unknown token, b_code: ${JSON.stringify(b_code)}`)
+    let index = this.token_table.length
+    let code = String.fromCodePoint(index)
+    let c: Token = {
+      chars: a.chars + b.chars,
+      weight: c_weight,
+      original_weight: c_weight,
+      code,
+      index,
+    }
+    this.applyMerge([a, b, c])
+  }
+}
+
+/**
+ * @description to store MergeToken in compact format
+ */
+export function compactMerge(merge: MergeToken): CompactMerge {
+  let [a, b, c] = merge
+  return [a.code, b.code, c.weight]
 }

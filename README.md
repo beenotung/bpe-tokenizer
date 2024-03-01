@@ -72,12 +72,6 @@ export class BPETokenizer {
   addToCorpus(content: string): void
 
   /**
-   * @description restore content to corpus (after restart) for continuous merging.
-   * Token weights are not updated when restoring content.
-   */
-  restoreToCorpus(content: string): void
-
-  /**
    * @description called by `mergeUntil()`.
    * Can be used to implement custom iteration conditions.
    */
@@ -104,6 +98,20 @@ export class BPETokenizer {
   decodeTokens(tokens: Token[]): string
   decodeVector(vector: number[]): string
 
+  /* for restore */
+
+  /**
+   * @description restore content to corpus (after restart) for continuous merging.
+   * Token weights are not updated when restoring content.
+   */
+  restoreToCorpus(content: string): void
+
+  /**
+   * @description restore merge produced from `compactMerge(this.findNextMerge())`.
+   * To be used after restart for continuous merging.
+   */
+  restoreMerge(compactMerge: CompactMerge): void
+
   /* internal methods */
 
   /**
@@ -121,6 +129,11 @@ export class BPETokenizer {
    */
   encodeToCode(content: string): string
 }
+
+/**
+ * @description to store MergeToken in compact format
+ */
+export function compactMerge(merge: MergeToken): CompactMerge
 
 export type Token = {
   chars: string
