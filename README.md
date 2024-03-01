@@ -150,6 +150,11 @@ export type Token = {
  * @description a + b -> c, e.g. "app" + "le" -> "apple"
  */
 export type MergeToken = [a: Token, b: Token, c: Token]
+
+/**
+ * @description to be stored to file for restoring
+ */
+export type CompactMerge = [a_code: string, b_code: string, c_weight: number]
 ```
 
 ## License
