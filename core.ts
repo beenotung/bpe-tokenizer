@@ -130,6 +130,10 @@ export class BPETokenizer {
     this.compactVectorIndex()
   }
 
+  /**
+   * @description add new content to corpus.
+   * Token weights are updated when adding content.
+   */
   addToCorpus(content: string) {
     let { char_to_token, code_to_token, token_table } = this
     let sample_in_code = ''
@@ -158,6 +162,15 @@ export class BPETokenizer {
   }
 
   /**
+   * @description restore content to corpus (after restart) for continuous merging.
+   * Token weights are not updated when restoring content.
+   */
+  restoreToCorpus(content: string) {
+    let content_in_code = this.encodeToCode(content)
+    this.corpus_in_code.push(content_in_code)
+  }
+
+  /**
    * @description skip zero-weight tokens to reduce range of vector index.
    * Auto called by `encodeToVector()` and `decodeVector()`
    */
@@ -182,6 +195,10 @@ export class BPETokenizer {
     }
   }
 
+  /**
+   * @description called by `mergeUntil()`.
+   * Can be used to implement custom iteration conditions.
+   */
   findNextMerge(): MergeToken | null {
     let { code_to_token } = this
 
@@ -248,6 +265,10 @@ export class BPETokenizer {
     return [max_a!, max_b!, max_c]
   }
 
+  /**
+   * @description called by `mergeUntil()`.
+   * Can be used to implement custom iteration conditions.
+   */
   applyMerge(merge: MergeToken) {
     let {
       code_to_token,
@@ -303,7 +324,14 @@ export class BPETokenizer {
     }
   }
 
-  protected encodeToCode(content: string): string {
+  /**
+   * @description encode to internal representation.
+   * Used by:
+   *   - `restoreToCorpus()`
+   *   - `encodeToTokens()`
+   *   - `encodeToVector()`
+   */
+  encodeToCode(content: string): string {
     let { char_to_token } = this
 
     let content_in_code = ''

@@ -65,9 +65,27 @@ export class BPETokenizer {
   }
   fromJSON(json: ReturnType<BPETokenizer['toJSON']>): void
 
+  /**
+   * @description add new content to corpus.
+   * Token weights are updated when adding content.
+   */
   addToCorpus(content: string): void
 
+  /**
+   * @description restore content to corpus (after restart) for continuous merging.
+   * Token weights are not updated when restoring content.
+   */
+  restoreToCorpus(content: string): void
+
+  /**
+   * @description called by `mergeUntil()`.
+   * Can be used to implement custom iteration conditions.
+   */
   findNextMerge(): MergeToken | null
+  /**
+   * @description called by `mergeUntil()`.
+   * Can be used to implement custom iteration conditions.
+   */
   applyMerge(merge: MergeToken): void
 
   /**
@@ -80,17 +98,28 @@ export class BPETokenizer {
     max_iterations?: number
   }): void
 
+  encodeToTokens(content: string): Token[]
+  encodeToVector(content: string): number[]
+
+  decodeTokens(tokens: Token[]): string
+  decodeVector(vector: number[]): string
+
+  /* internal methods */
+
   /**
    * @description skip zero-weight tokens to reduce range of vector index.
    * Auto called by `encodeToVector()` and `decodeVector()`
    */
   compactVectorIndex(): void
 
-  encodeToTokens(content: string): Token[]
-  encodeToVector(content: string): number[]
-
-  decodeTokens(tokens: Token[]): string
-  decodeVector(vector: number[]): string
+  /**
+   * @description encode to internal representation.
+   * Used by:
+   *   - `restoreToCorpus()`
+   *   - `encodeToTokens()`
+   *   - `encodeToVector()`
+   */
+  encodeToCode(content: string): string
 }
 
 export type Token = {
