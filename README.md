@@ -33,7 +33,8 @@ The entity relation diagram (ERD) of BPETokenizerDB is documented in [erd.txt](.
 - BPETokenizer
   - in-memory
   - zero-dependencies
-  - works in both nodejs and browser
+  - cross-platform
+    - works in both nodejs and browser
   - encode/decode to token
     - as token object
     - as vector (integer index of token)
@@ -66,6 +67,24 @@ npm install bpe-tokenizer
 ```
 
 This package has two optional dependencies. They can be omitted when using `BPETokenizer`. You can check corresponding installation options from npm or pnpm to omit optional dependencies.
+
+### Package Overview
+
+```javascript
+require('bpe-tokenizer')
+{
+  EOF: '\x04',  // string
+  BPETokenizer, // class
+  compactMerge, // function
+}
+
+require('bpe-tokenizer/db')
+{
+  BPETokenizerDB,      // class
+  resetBPETokenizerDB, // function
+  connectDB,           // function
+}
+```
 
 ## Usage Example
 
