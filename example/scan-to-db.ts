@@ -12,7 +12,8 @@ async function main() {
   timer.setEstimateProgress(count_corpus() - last_post_id)
   for await (let corpus of load_corpus_list()) {
     if (corpus.id <= last_post_id) continue
-    tokenizer.addToCorpus(corpus.id, corpus.content)
+    // tokenizer.addToCorpus(corpus.id, corpus.content)
+    tokenizer.restoreToCorpus(corpus.id, corpus.content)
     timer.tick()
   }
   timer.end()

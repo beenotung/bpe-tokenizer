@@ -193,6 +193,10 @@ export class BPETokenizerDB {
     return id in this.proxy.corpus
   }
 
+  /**
+   * @description add new content to corpus.
+   * Token weights are updated when adding content.
+   */
   addToCorpus(id: number, content: string) {
     let { proxy, char_to_token, code_to_token } = this
     let { token: token_table, char_token, corpus } = proxy
@@ -222,6 +226,16 @@ export class BPETokenizerDB {
       }
       content_code += token.code
     }
+    proxy.corpus[id] = { id, content_code }
+  }
+
+  /**
+   * @description restore content to corpus (after import tokens with fromJSON()) for continuous merging.
+   * Token weights are not updated when restoring content.
+   */
+  restoreToCorpus(id: number, content: string) {
+    let { proxy } = this
+    let content_code = this.encodeToCode(content)
     proxy.corpus[id] = { id, content_code }
   }
 
@@ -338,6 +352,32 @@ export class BPETokenizerDB {
       corpus.content_code = corpus.content_code.replaceAll(from_code, to_code)
       update_corpus.run(corpus)
     }
+  }
+
+  /**
+   * @description encode to internal representation.
+   * Used by:
+   *   - `restoreToCorpus()`
+   *   - `encodeToTokens()`
+   *   - `encodeToVector()`
+   */
+  encodeToCode(content: string): string {
+    let { char_to_token } = this
+
+    let content_in_code = ''
+    for (let char of content) {
+      let token = char_to_token[char]
+      if (!token) {
+        throw new Error('unknown token, char: ' + JSON.stringify(char))
+      }
+      content_in_code += token.code
+    }
+
+    for (let [from_code, to_code] of this.merge_codes) {
+      content_in_code = content_in_code.replaceAll(from_code, to_code)
+    }
+
+    return content_in_code
   }
 }
 
