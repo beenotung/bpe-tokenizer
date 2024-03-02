@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import { BPETokenizer } from '../core'
-import { BPETokenizerDB, connectDB, resetBPETokenizerDB } from './core-db'
+import { BPETokenizerDB, connectDB, resetBPETokenizerDB } from './core'
 import { unlinkSync } from 'fs'
 
 let content = 'aaabdaaabac'

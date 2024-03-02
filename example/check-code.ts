@@ -1,5 +1,5 @@
 import { startTimer } from '@beenotung/tslib/timer'
-import { createProxy } from '../core-db/proxy'
+import { createProxy } from '../db/proxy'
 import { db } from './db'
 
 let proxy = createProxy({ db })
