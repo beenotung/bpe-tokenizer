@@ -28,7 +28,8 @@ export class BPETokenizerDB {
   /** @description for encode */
   merge_codes: MergeCode[]
 
-  select_last_corpus_id: BetterSqlite.Statement
+  /** @returns number | null */
+  protected select_last_corpus_id: BetterSqlite.Statement
 
   constructor(options: { db: BetterSqlite3Helper.DBInstance }) {
     let { db } = options
@@ -59,8 +60,9 @@ export class BPETokenizerDB {
     this.applyMerge = db.transaction(this.applyMerge)
   }
 
-  getLastCorpusExternalId(): string | null {
-    return this.select_last_corpus_id.get() as string
+  /** @description to enable adding more corpus without duplication */
+  getLastCorpusExternalId(): number | null {
+    return this.select_last_corpus_id.get() as number
   }
 
   hasCorpus(id: number): boolean {
