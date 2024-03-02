@@ -21,12 +21,21 @@
   "main": "core.js",
   "types": "core.d.ts",
   "files": [
+    "db/core.d.ts",
+    "db/core.js",
+    "db/erd.txt",
+    "db/index.d.ts",
+    "db/index.js",
+    "db/migration.d.ts",
+    "db/migration.js",
+    "db/proxy.d.ts",
+    "db/proxy.js",
     "core.d.ts",
     "core.js"
   ],
   "scripts": {
     "prepublishOnly": "npm test && npm run build",
-    "clean": "rimraf *.js *.d.ts",
+    "clean": "rimraf {.,db,example}/*.{js,d.ts}",
     "test": "run-s type-check clean mocha",
     "type-check": "tsc --noEmit",
     "mocha": "ts-mocha *.spec.ts db/*.spec.ts",
