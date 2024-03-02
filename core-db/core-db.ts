@@ -44,10 +44,27 @@ export class BPETokenizerDB {
     all(): { a_code: string; b_code: string; original_weight: number }[]
   }
 
+  /** @description used by compactVectorIndex() */
+  protected select_weighted_token: {
+    all(): number[]
+  }
+
   /** @description used by applyMerge() */
   protected update_corpus: {
     run(bindings: { id: number; content_code: string }): void
   }
+
+  /**
+   * @description for encode
+   * @description vector_index skip zero-weight tokens
+   * */
+  to_vector_index: number[] | null = null
+
+  /**
+   * @description for decode
+   * @description vector_index skip zero-weight tokens
+   * */
+  from_vector_index: number[] | null = null
 
   constructor(options: { db: BetterSqlite3Helper.DBInstance }) {
     let { db } = options
@@ -85,6 +102,16 @@ export class BPETokenizerDB {
       inner join token c on c.id = merge.c_id
       order by merge.id asc
       `) as { all(): any[] }
+
+    this.select_weighted_token = db
+      .prepare(
+        /* sql */ `
+      select id from token
+      where weight > 0
+      order by id asc
+      `,
+      )
+      .pluck() as { all(): any[] }
 
     this.update_corpus = db.prepare(/* sql */ `
       update corpus
@@ -239,6 +266,38 @@ export class BPETokenizerDB {
     proxy.corpus[id] = { id, content_code }
   }
 
+  protected invalidateVectorIndex() {
+    this.to_vector_index = null
+    this.from_vector_index = null
+  }
+
+  /**
+   * @description skip zero-weight tokens to reduce range of vector index.
+   * Auto called by `encodeToVector()` and `decodeVector()`
+   */
+  compactVectorIndex() {
+    let { proxy } = this
+    let { token: token_table } = proxy
+    let token_count = token_table.length
+    if (token_count == 0) {
+      throw new Error(
+        `token table is empty, have you called tokenizer.addToCorpus()?`,
+      )
+    }
+    let to_vector_index: number[] = (this.to_vector_index = [])
+    let from_vector_index: number[] = (this.from_vector_index = [])
+    let vector_index = 0
+    for (let id of this.select_weighted_token.all()) {
+      to_vector_index[id] = vector_index
+      from_vector_index[vector_index] = id
+      vector_index++
+    }
+  }
+
+  /**
+   * @description called by `mergeUntil()`.
+   * Can be used to implement custom iteration conditions.
+   */
   findNextMerge(): MergeToken | null {
     let { proxy, code_to_token } = this
 
@@ -310,6 +369,10 @@ export class BPETokenizerDB {
     return [max_a!, max_b!, max_c]
   }
 
+  /**
+   * @description called by `mergeUntil()`.
+   * Can be used to implement custom iteration conditions.
+   */
   applyMerge(merge: MergeToken) {
     let { proxy, code_to_token, merge_codes, update_corpus } = this
     let [a, b, c] = merge
@@ -323,6 +386,10 @@ export class BPETokenizerDB {
 
     a.weight -= c.weight
     b.weight -= c.weight
+
+    if (a.weight == 0 || b.weight == 0) {
+      this.invalidateVectorIndex()
+    }
 
     proxy.token[c.id!] = c
     c = proxy.token[c.id!]
@@ -355,6 +422,30 @@ export class BPETokenizerDB {
   }
 
   /**
+   * @description call `findNextMerge()` and `applyMerge()` in loop
+   */
+  mergeUntil(options?: {
+    /** @default 2 */
+    min_weight?: number
+    /** @default unlimited */
+    max_iterations?: number
+  }) {
+    let min_weight = options?.min_weight || 2
+    let max_iterations = options?.max_iterations
+    for (
+      let iteration = 1;
+      !max_iterations || iteration <= max_iterations;
+      iteration++
+    ) {
+      let merge = this.findNextMerge()
+      if (!merge) break
+      let [_a, _b, c] = merge
+      if (c.weight < min_weight) break
+      this.applyMerge(merge)
+    }
+  }
+
+  /**
    * @description encode to internal representation.
    * Used by:
    *   - `restoreToCorpus()`
@@ -378,6 +469,69 @@ export class BPETokenizerDB {
     }
 
     return content_in_code
+  }
+
+  encodeToTokens(content: string): Token[] {
+    let { code_to_token } = this
+
+    let content_in_code = this.encodeToCode(content)
+
+    let tokens: Token[] = []
+    for (let code of content_in_code) {
+      tokens.push(code_to_token[code])
+    }
+
+    return tokens
+  }
+
+  encodeToVector(content: string): number[] {
+    let { code_to_token, to_vector_index } = this
+
+    if (!to_vector_index) {
+      this.compactVectorIndex()
+      to_vector_index = this.to_vector_index!
+    }
+
+    let content_in_code = this.encodeToCode(content)
+
+    let vector: number[] = []
+    for (let code of content_in_code) {
+      let id = code_to_token[code].id!
+      if (id in to_vector_index) {
+        vector.push(to_vector_index[id])
+      } else {
+        throw new Error(`unknown token id: ${id}`)
+      }
+    }
+
+    return vector
+  }
+
+  decodeTokens(tokens: Token[]): string {
+    let content = ''
+    for (let token of tokens) {
+      content += token.chars
+    }
+    return content
+  }
+
+  decodeVector(vector: number[]): string {
+    let { proxy, from_vector_index } = this
+    let { token: token_table } = proxy
+    if (!from_vector_index) {
+      this.compactVectorIndex()
+      from_vector_index = this.from_vector_index!
+    }
+    let content = ''
+    for (let vector_index of vector) {
+      if (vector_index in from_vector_index) {
+        let index = from_vector_index[vector_index]
+        content += token_table[index].chars
+      } else {
+        throw new Error(`unknown vector index: ${vector_index}`)
+      }
+    }
+    return content
   }
 }
 
