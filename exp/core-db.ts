@@ -71,7 +71,10 @@ export class BPETokenizerDB {
 
   addToCorpus(id: number, content: string) {
     let { proxy, char_to_token, code_to_token } = this
-    let { token: token_table, char_token } = proxy
+    let { token: token_table, char_token, corpus } = proxy
+    if (id in corpus) {
+      throw new Error('corpus already added to database')
+    }
     let content_code = ''
     for (let char of EOF + content + EOF) {
       let token = char_to_token[char]
