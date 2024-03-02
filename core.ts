@@ -64,6 +64,10 @@ export class BPETokenizer {
   /** @description added by this.addToCorpus() */
   corpus_in_code: string[] = []
 
+  /**
+   * @description export token tables and merge list.
+   * The json can be used to restore after restart, or to populate database with BPETokenizerDB.
+   */
   toJSON(): BPETokenizerJSON {
     let { merge_tokens } = this
     let token_table: [chars: string, weight: number][] = []
@@ -86,11 +90,7 @@ export class BPETokenizer {
     }
   }
 
-  protected invalidateVectorIndex() {
-    this.to_vector_index = null
-    this.from_vector_index = null
-  }
-
+  /** @description restore from json (after restart) */
   fromJSON(json: BPETokenizerJSON) {
     if (
       json.version !== 1 ||
@@ -142,6 +142,11 @@ export class BPETokenizer {
       merge_codes.push([a.code + b.code, c.code])
     }
     this.compactVectorIndex()
+  }
+
+  protected invalidateVectorIndex() {
+    this.to_vector_index = null
+    this.from_vector_index = null
   }
 
   /**

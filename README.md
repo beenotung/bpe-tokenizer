@@ -58,7 +58,13 @@ export class BPETokenizer {
   /** @description token.index -> Token */
   token_table: Token[]
 
+  /**
+   * @description export token tables and merge list.
+   * The json can be used to restore after restart, or to populate database with BPETokenizerDB.
+   */
   toJSON(): BPETokenizerJSON
+
+  /** @description restore from json (after restart) */
   fromJSON(json: BPETokenizerJSON): void
 
   /**
