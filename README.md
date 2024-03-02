@@ -6,15 +6,66 @@ Build your own vocabulary from application-specific corpus using [Byte pair enco
 [![Minified Package Size](https://img.shields.io/bundlephobia/min/bpe-tokenizer)](https://bundlephobia.com/package/bpe-tokenizer)
 [![Minified and Gzipped Package Size](https://img.shields.io/bundlephobia/minzip/bpe-tokenizer)](https://bundlephobia.com/package/bpe-tokenizer)
 
+## Background
+
 This algorithm was first described in 1994 by Philip Gage for encoding strings of text into tabular form for use in downstream modeling. It was adopted by OpenAI to build GPT.
 
+## Motivation
+
 Instead of using an over sized vocabulary set from generic dataset, you can build a smaller vocabulary set tailored for your application.
+
+## Package Overview
+
+This package consists of two BPE tokenizers: in-memory `BPETokenizer` and sqlite-backed `BPETokenizerDB`.
+
+The in-memory implementation can merge tokens in faster manner. The incremental merges can be persisted, which can be re-applied to resume merging progress after restart.
+
+After the merging iteration is finished, the complete token table in the tokenizer and be persist and recovered after restart for encoding and decoding.
+
+The sqlite-backed implementation store the characters and occurrences of each token in the database. The required tables are created automatically if not existing.
+
+To facilitate applications built on-top of this package, the token table in `BPETokenizer` is a public property, and the tokens in `BPETokenizerDB` are accessible via typed proxy array.
+
+The entity relation diagram (ERD) of BPETokenizerDB is documented in [erd.txt](./core-db/erd.txt).
+
+## Features Highlight
+
+- BPETokenizer
+  - in-memory
+  - zero-dependencies
+  - works in both nodejs and browser
+  - encode/decode to token
+    - as token object
+    - as vector (integer index of token)
+    - as binary string (compact format)
+  - faster at merging token than BPETokenizerDB
+  - support continuos merging after restart
+    - can export tokens and merges as json (to be persisted)
+    - can resume from full snapshot or incremental merges
+    - need to re-add content to corpus
+- BPETokenizerDB
+  - using sqlite as backend
+  - works in nodejs (not in browser)
+  - encode/decode to token
+    - as token object (proxy to the row in database)
+    - as vector (integer id of token)
+    - as binary string (compact format)
+  - auto create tables if not existing
+  - easy to obtain statistics on tokens
+  - support import from snapshot exported from BPETokenizer
+  - support continuos merging after restart
+    - can resume merging without extra steps
+    - do not need to re-add content to corpus
+  - hot data are cached in memory
+    - fast encoding / decoding
 
 ## Installation
 
 ```bash
 npm install bpe-tokenizer
 ```
+
+This package has two optional dependencies. They can be omitted when using `BPETokenizer`. You can check corresponding installation options from npm or pnpm to omit optional dependencies.
 
 ## Usage Example
 
@@ -31,6 +82,9 @@ tokenizer.addToCorpus(content)
 
 // you can set a higher threshold for the minimum number of occurrences
 tokenizer.mergeUntil({ min_weight: 2 })
+
+// persist the tokenizer, you can restore it with tokenizer.fromJSON()
+fs.writeFileSync('tokenizer.json', JSON.stringify(tokenizer))
 
 // encode into object array for extended usage
 let tokens = tokenizer.encodeToTokens(content)
