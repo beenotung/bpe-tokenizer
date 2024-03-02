@@ -10,7 +10,7 @@ async function main() {
   let timer = startTimer('add into corpus')
   timer.setEstimateProgress(count_corpus() - last_post_id)
   for await (let corpus of load_corpus_list()) {
-    if (corpus.id < last_post_id) continue
+    if (corpus.id <= last_post_id) continue
     tokenizer.addToCorpus(corpus.id, corpus.content)
     timer.tick()
   }
