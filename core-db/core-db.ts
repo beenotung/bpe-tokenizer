@@ -80,6 +80,14 @@ export class BPETokenizerDB {
     this.applyMerge = db.transaction(this.applyMerge)
   }
 
+  reset() {
+    let { proxy } = this
+    proxy.char_token.length = 0
+    proxy.merge.length = 0
+    proxy.corpus.length = 0
+    proxy.token.length = 0
+  }
+
   /** @description to enable adding more corpus without duplication */
   getLastCorpusId(): number | null {
     return this.select_last_corpus_id.get() as number
@@ -99,7 +107,7 @@ export class BPETokenizerDB {
     for (let char of EOF + content + EOF) {
       let token = char_to_token[char]
       if (!token) {
-        let id = token_table.length
+        let id = token_table.length + 1
         let code = String.fromCodePoint(id)
         token = {
           chars: char,
@@ -179,7 +187,7 @@ export class BPETokenizerDB {
 
     if (!max_c_weight) return null
 
-    let new_id = proxy.token.length
+    let new_id = proxy.token.length + 1
     let new_code = String.fromCodePoint(new_id)
     let max_c: Token = {
       chars: max_a!.chars + max_b!.chars,
