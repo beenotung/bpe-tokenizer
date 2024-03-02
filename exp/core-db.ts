@@ -70,7 +70,7 @@ export class BPETokenizerDB {
   }
 
   addToCorpus(id: number, content: string) {
-    let { proxy, char_to_token } = this
+    let { proxy, char_to_token, code_to_token } = this
     let { token: token_table, char_token } = proxy
     let content_code = ''
     for (let char of EOF + content + EOF) {
@@ -88,6 +88,7 @@ export class BPETokenizerDB {
         char_token[id] = { id }
         token = token_table[id]
         char_to_token[char] = token
+        code_to_token[code] = token
       } else {
         token.weight++
         token.original_weight++
