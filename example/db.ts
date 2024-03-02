@@ -1,4 +1,4 @@
-import { connectDB } from '../core-db'
+import { connectDB } from '../db'
 
 export const dbFile = 'db.sqlite3'
 

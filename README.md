@@ -26,7 +26,7 @@ The sqlite-backed implementation store the characters and occurrences of each to
 
 To facilitate applications built on-top of this package, the token table in `BPETokenizer` is a public property, and the tokens in `BPETokenizerDB` are accessible via typed proxy array.
 
-The entity relation diagram (ERD) of BPETokenizerDB is documented in [erd.txt](./core-db/erd.txt).
+The entity relation diagram (ERD) of BPETokenizerDB is documented in [erd.txt](./db/erd.txt).
 
 ## Features Highlight
 
@@ -106,6 +106,13 @@ console.log({
 ```
 
 ## Typescript Signature
+
+<details>
+<summary>(click to expand)
+
+Type signatures of `BPETokenizer` in `bpe-tokenizer`:
+
+</summary>
 
 ```typescript
 export class BPETokenizer {
@@ -213,6 +220,155 @@ export type BPETokenizerJSON = {
   merge_codes: CompactMerge[]
 }
 ```
+
+</details>
+
+<details>
+<summary>(click to expand)
+
+Type signatures of `BPETokenizerDB` in `bpe-tokenizer/db`:
+
+</summary>
+
+```typescript
+import { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
+import { DBProxy, Token } from './proxy'
+import { BPETokenizerJSON } from '../core'
+
+export function connectDB(path: string): BetterSqlite3Helper.DBInstance
+
+export function resetBPETokenizerDB(db: BetterSqlite3Helper.DBInstance): void
+
+export class BPETokenizerDB {
+  db: BetterSqlite3Helper.DBInstance
+  proxy: DBProxy
+
+  constructor(options: { db: BetterSqlite3Helper.DBInstance })
+
+  /** @description delete all tokens and corpus from database, called by fromJSON() */
+  reset(): void
+
+  /** @description for in-memory BPETokenizer */
+  toJSON(): BPETokenizerJSON
+
+  /** @description delete all existing tokens and corpus, then import tokens from the json */
+  fromJSON(json: BPETokenizerJSON): void
+
+  /** @description to enable adding more corpus without duplication */
+  getLastCorpusId(): number | null
+
+  hasCorpus(id: number): boolean
+
+  /**
+   * @description add new content to corpus.
+   * Token weights are updated when adding content.
+   */
+  addToCorpus(id: number, content: string): void
+
+  /**
+   * @description restore content to corpus (after import tokens with fromJSON()) for continuous merging.
+   * Token weights are not updated when restoring content.
+   */
+  restoreToCorpus(id: number, content: string): void
+
+  /**
+   * @description called by `mergeUntil()`.
+   * Can be used to implement custom iteration conditions.
+   */
+  findNextMerge(): MergeToken | null
+
+  /**
+   * @description called by `mergeUntil()`.
+   * Can be used to implement custom iteration conditions.
+   */
+  applyMerge(merge: MergeToken): void
+
+  /**
+   * @description call `findNextMerge()` and `applyMerge()` in loop
+   */
+  mergeUntil(options?: {
+    /** @default 2 */
+    min_weight?: number
+    /** @default unlimited */
+    max_iterations?: number
+  }): void
+
+  encodeToTokens(content: string): Token[]
+  encodeToVector(content: string): number[]
+
+  decodeTokens(tokens: Token[]): string
+  decodeVector(vector: number[]): string
+
+  /**
+   * @description encode to binary string.
+   * Used by:
+   *   - `restoreToCorpus()`
+   *   - `encodeToTokens()`
+   *   - `encodeToVector()`
+   */
+  encodeToCode(content: string): string
+}
+
+/**
+ * @description a + b -> c, e.g. "app" + "le" -> "apple"
+ */
+export type MergeToken = [a: Token, b: Token, c: Token]
+```
+
+</details>
+
+<details>
+<summary>(click to expand)
+
+Type signatures of the tables in `bpe-tokenizer/db/proxy`:
+
+</summary>
+
+```typescript
+import { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
+import { ProxySchemaOptions } from 'better-sqlite3-proxy'
+
+export type Corpus = {
+  id?: null | number
+  content_code: string
+}
+export type Token = {
+  id?: null | number
+  chars: string
+  weight: number
+  original_weight: number
+  code: string
+}
+export type CharToken = {
+  id?: null | number
+  token?: Token
+}
+export type Merge = {
+  id?: null | number
+  a_id: number
+  a?: Token
+  b_id: number
+  b?: Token
+  c_id: number
+  c?: Token
+}
+
+export type DBProxy = {
+  corpus: Corpus[]
+  token: Token[]
+  char_token: CharToken[]
+  merge: Merge[]
+}
+
+export let tableFields: ProxySchemaOptions<DBProxy>['tableFields']
+
+export function createProxy(options: {
+  db: BetterSqlite3Helper.DBInstance
+  auto_update_timestamp?: boolean | undefined
+}): DBProxy
+```
+
+</details>
 
 ## License
 
