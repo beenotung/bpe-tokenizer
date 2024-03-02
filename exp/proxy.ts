@@ -2,7 +2,6 @@ import { proxySchema, ProxySchemaOptions } from 'better-sqlite3-proxy'
 
 export type Corpus = {
   id?: null | number
-  external_id: string
   content_code: string
 }
 

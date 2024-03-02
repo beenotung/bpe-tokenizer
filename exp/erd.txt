@@ -18,7 +18,6 @@
 corpus
 ------
 id integer PK
-external_id text
 content_code text
 
 

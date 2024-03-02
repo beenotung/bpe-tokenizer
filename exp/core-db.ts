@@ -1,6 +1,7 @@
 import { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
 import { DBProxy, Token, createProxy } from './proxy'
 import BetterSqlite from 'better-sqlite3'
+import { join } from 'path'
 
 export let EOF = String.fromCharCode(4)
 
@@ -27,23 +28,18 @@ export class BPETokenizerDB {
   /** @description for encode */
   merge_codes: MergeCode[]
 
-  select_last_corpus_external_id: BetterSqlite.Statement
+  select_last_corpus_id: BetterSqlite.Statement
 
   constructor(options: { db: BetterSqlite3Helper.DBInstance }) {
     let { db } = options
+    db.migrate({ migrationsPath: join(__dirname, 'migrations') })
     this.db = db
     this.proxy = createProxy({ db })
     this.char_to_token = {}
     this.code_to_token = {}
     this.merge_codes = []
-    this.select_last_corpus_external_id = db
-      .prepare(
-        /* sql */ `
-    select external_id from corpus
-    order by id desc
-    limit 1
-    `,
-      )
+    this.select_last_corpus_id = db
+      .prepare(/* sql */ `select max(id) from corpus`)
       .pluck()
     let { proxy, char_to_token, code_to_token, merge_codes } = this
     for (let token of proxy.token) {
@@ -64,10 +60,14 @@ export class BPETokenizerDB {
   }
 
   getLastCorpusExternalId(): string | null {
-    return this.select_last_corpus_external_id.get() as string
+    return this.select_last_corpus_id.get() as string
   }
 
-  addToCorpus(external_id: number | string, content: string) {
+  hasCorpus(id: number): boolean {
+    return id in this.proxy.corpus
+  }
+
+  addToCorpus(id: number, content: string) {
     let { proxy, char_to_token } = this
     let { token: token_table, char_token } = proxy
     let content_code = ''
@@ -92,10 +92,7 @@ export class BPETokenizerDB {
       }
       content_code += token.code
     }
-    proxy.corpus.push({
-      external_id: external_id as string,
-      content_code: content_code,
-    })
+    proxy.corpus[id] = { id, content_code }
   }
 
   findNextMerge(): MergeToken | null {
