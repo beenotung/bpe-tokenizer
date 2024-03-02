@@ -1,7 +1,7 @@
-import { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
+import DB, { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
 import { DBProxy, Token, createProxy } from './proxy'
 import { migrationSQL } from './migration'
-import { EOF } from '../core'
+import { BPETokenizerJSON, EOF } from '../core'
 
 /**
  * @description a + b -> c, e.g. "app" + "le" -> "apple"
@@ -34,6 +34,16 @@ export class BPETokenizerDB {
     all(bindings: { code: string }): { id: number; content_code: string }[]
   }
 
+  /** @description used by toJSON() */
+  protected select_token_table: {
+    all(): { chars: string; original_weight: number }[]
+  }
+
+  /** @description used by toJSON() */
+  protected select_merge: {
+    all(): { a_code: string; b_code: string; original_weight: number }[]
+  }
+
   /** @description used by applyMerge() */
   protected update_corpus: {
     run(bindings: { id: number; content_code: string }): void
@@ -55,6 +65,25 @@ export class BPETokenizerDB {
     this.select_corpus_by_code = db.prepare(/* sql */ `
       select id, content_code from corpus
       where content_code like :code
+      `) as { all(): any[] }
+
+    this.select_token_table = db.prepare(/* sql */ `
+      select chars, original_weight
+      from char_token
+      inner join token on token.id = char_token.id
+      order by token.id asc
+      `) as { all(): any[] }
+
+    this.select_merge = db.prepare(/* sql */ `
+      select
+        a.code as a_code
+      , b.code as b_code
+      , c.original_weight
+      from merge
+      inner join token a on a.id = merge.a_id
+      inner join token b on b.id = merge.b_id
+      inner join token c on c.id = merge.c_id
+      order by merge.id asc
       `) as { all(): any[] }
 
     this.update_corpus = db.prepare(/* sql */ `
@@ -79,14 +108,80 @@ export class BPETokenizerDB {
     this.addToCorpus = db.transaction(this.addToCorpus)
     this.findNextMerge = db.transaction(this.findNextMerge)
     this.applyMerge = db.transaction(this.applyMerge)
+    this.toJSON = db.transaction(this.toJSON)
+    this.fromJSON = db.transaction(this.fromJSON)
   }
 
+  /** @description delete all tokens and corpus from database */
   reset() {
-    let { proxy } = this
-    proxy.char_token.length = 0
-    proxy.merge.length = 0
-    proxy.corpus.length = 0
-    proxy.token.length = 0
+    let { db } = this
+    resetBPETokenizerDB(db)
+    let that = new BPETokenizerDB({ db })
+    Object.assign(this, that)
+  }
+
+  /** @description for in-memory BPETokenizer */
+  toJSON(): BPETokenizerJSON {
+    debugger
+    return {
+      version: 1,
+      token_table: this.select_token_table
+        .all()
+        .map(token => [token.chars, token.original_weight]),
+      merge_codes: this.select_merge.all().map(merge => {
+        let a_code = String.fromCodePoint(merge.a_code.codePointAt(0)! - 1)
+        let b_code = String.fromCodePoint(merge.b_code.codePointAt(0)! - 1)
+        return [a_code, b_code, merge.original_weight]
+      }),
+    }
+  }
+
+  /** @description delete all existing tokens and corpus, then import tokens from the json */
+  fromJSON(json: BPETokenizerJSON) {
+    if (
+      json.version !== 1 ||
+      !Array.isArray(json.token_table) ||
+      !Array.isArray(json.merge_codes)
+    )
+      throw new Error('invalid format')
+    this.reset()
+    let { db, proxy, code_to_token } = this
+    let { token: token_table, char_token, merge } = proxy
+    let token_id = 0
+    for (let [char, weight] of json.token_table) {
+      token_id++
+      let code = String.fromCodePoint(token_id)
+      let token: Token = {
+        chars: char,
+        weight,
+        original_weight: weight,
+        code,
+        id: token_id,
+      }
+      token_table[token_id] = token
+      char_token[token_id] = { id: token_id }
+      code_to_token[code] = token
+    }
+    for (let [a_code, b_code, c_weight] of json.merge_codes) {
+      a_code = String.fromCodePoint(a_code.codePointAt(0)! + 1)
+      b_code = String.fromCodePoint(b_code.codePointAt(0)! + 1)
+      token_id++
+      let code = String.fromCodePoint(token_id)
+      let a = code_to_token[a_code]
+      let b = code_to_token[b_code]
+      let c: Token = {
+        chars: a.chars + b.chars,
+        weight: c_weight,
+        original_weight: c_weight,
+        code,
+        id: token_id,
+      }
+      token_table[token_id] = c
+      merge.push({ a_id: a.id!, b_id: b.id!, c_id: c.id! })
+      code_to_token[code] = c
+    }
+    let that = new BPETokenizerDB({ db })
+    Object.assign(this, that)
   }
 
   /** @description to enable adding more corpus without duplication */
@@ -223,11 +318,41 @@ export class BPETokenizerDB {
     proxy.merge.push({ a_id: a.id!, b_id: b.id!, c_id: c.id! })
     merge_codes.push([from_code, to_code])
 
-    for (let corpus of this.select_corpus_by_code.all({
+    let corpus_rows = this.select_corpus_by_code.all({
       code: `%${from_code}%`,
-    })) {
+    })
+    if (corpus_rows.length == 0) {
+      for (let corpus of proxy.corpus) {
+        if (corpus.content_code.includes(from_code)) {
+          corpus_rows.push({
+            id: corpus.id!,
+            content_code: corpus.content_code,
+          })
+        }
+      }
+      if (corpus_rows.length == 0) {
+        throw new Error('no matched corpus found')
+      }
+    }
+    for (let corpus of corpus_rows) {
       corpus.content_code = corpus.content_code.replaceAll(from_code, to_code)
       update_corpus.run(corpus)
     }
   }
+}
+
+export function resetBPETokenizerDB(db: BetterSqlite3Helper.DBInstance) {
+  db.migrate({ migrations: [migrationSQL] })
+  let proxy = createProxy({ db })
+  proxy.char_token.length = 0
+  proxy.merge.length = 0
+  proxy.corpus.length = 0
+  proxy.token.length = 0
+}
+
+export function connectDB(path: string) {
+  return DB({
+    path,
+    migrate: false,
+  })
 }

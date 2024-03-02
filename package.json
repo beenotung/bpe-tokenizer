@@ -29,7 +29,7 @@
     "clean": "rimraf *.js *.d.ts",
     "test": "run-s type-check clean mocha",
     "type-check": "tsc --noEmit",
-    "mocha": "ts-mocha core.spec.ts",
+    "mocha": "ts-mocha *.spec.ts core-db/*.spec.ts",
     "build": "run-s clean tsc",
     "tsc": "tsc -p ."
   },

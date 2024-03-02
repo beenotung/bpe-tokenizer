@@ -1,2 +1,4 @@
 db.sqlite3*
 data.txt
+tokenizer.json
+tokenizer_db.json

@@ -1,10 +1,11 @@
 import { startTimer } from '@beenotung/tslib/timer'
-import { BPETokenizerDB } from '../core-db/core-db'
-import { db as tokenizer_db } from './db'
+import { BPETokenizerDB, resetBPETokenizerDB } from '../core-db/core-db'
+import { db } from './db'
 import { count_corpus, load_corpus_list } from './sample-corpus'
 
 async function main() {
-  let tokenizer = new BPETokenizerDB({ db: tokenizer_db })
+  // resetBPETokenizerDB(db)
+  let tokenizer = new BPETokenizerDB({ db })
 
   let last_post_id = tokenizer.getLastCorpusId() || 0
   let timer = startTimer('add into corpus')
@@ -16,14 +17,18 @@ async function main() {
   }
   timer.end()
 
+  console.time('merge loop')
   for (;;) {
+    debugger
     console.time('findNextMerge')
     let merge = tokenizer.findNextMerge()
     console.timeEnd('findNextMerge')
     if (!merge) break
     let [a, b, c] = merge
+    if (c.weight < 200) break
     console.log('new token:', c)
     tokenizer.applyMerge(merge)
   }
+  console.timeEnd('merge loop')
 }
 main().catch(e => console.error(e))
