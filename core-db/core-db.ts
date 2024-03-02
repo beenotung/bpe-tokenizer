@@ -26,14 +26,15 @@ export class BPETokenizerDB {
   /** @description for encode */
   merge_codes: MergeCode[]
 
-  /** @returns number | null */
+  /** @description used by getLastCorpusId() */
   protected select_last_corpus_id: { get(): number | null }
 
-  /** @returns array of id, content_code */
+  /** @description used by applyMerge() */
   protected select_corpus_by_code: {
     all(bindings: { code: string }): { id: number; content_code: string }[]
   }
 
+  /** @description used by applyMerge() */
   protected update_corpus: {
     run(bindings: { id: number; content_code: string }): void
   }
