@@ -6,7 +6,7 @@ import { count_corpus, load_corpus_list } from './sample-corpus'
 async function main() {
   let tokenizer = new BPETokenizerDB({ db: tokenizer_db })
 
-  let last_post_id = tokenizer.getLastCorpusExternalId() || 0
+  let last_post_id = tokenizer.getLastCorpusId() || 0
   let timer = startTimer('add into corpus')
   timer.setEstimateProgress(count_corpus() - last_post_id)
   for await (let corpus of load_corpus_list()) {

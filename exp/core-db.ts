@@ -61,7 +61,7 @@ export class BPETokenizerDB {
   }
 
   /** @description to enable adding more corpus without duplication */
-  getLastCorpusExternalId(): number | null {
+  getLastCorpusId(): number | null {
     return this.select_last_corpus_id.get() as number
   }
 
