@@ -347,7 +347,7 @@ export class BPETokenizer {
   }
 
   /**
-   * @description encode to internal representation.
+   * @description encode to binary string.
    * Used by:
    *   - `restoreToCorpus()`
    *   - `encodeToTokens()`

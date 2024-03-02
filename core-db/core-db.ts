@@ -139,7 +139,7 @@ export class BPETokenizerDB {
     this.fromJSON = db.transaction(this.fromJSON)
   }
 
-  /** @description delete all tokens and corpus from database */
+  /** @description delete all tokens and corpus from database, called by fromJSON() */
   reset() {
     let { db } = this
     resetBPETokenizerDB(db)
@@ -446,7 +446,7 @@ export class BPETokenizerDB {
   }
 
   /**
-   * @description encode to internal representation.
+   * @description encode to binary string.
    * Used by:
    *   - `restoreToCorpus()`
    *   - `encodeToTokens()`
@@ -535,6 +535,7 @@ export class BPETokenizerDB {
   }
 }
 
+/** @description delete all tokens and corpus from database */
 export function resetBPETokenizerDB(db: BetterSqlite3Helper.DBInstance) {
   db.migrate({ migrations: [migrationSQL] })
   let proxy = createProxy({ db })
