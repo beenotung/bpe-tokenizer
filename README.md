@@ -171,12 +171,6 @@ export class BPETokenizer {
   /* internal methods */
 
   /**
-   * @description skip zero-weight tokens to reduce range of vector index.
-   * Auto called by `encodeToVector()` and `decodeVector()`
-   */
-  compactVectorIndex(): void
-
-  /**
    * @description encode to internal representation.
    * Used by:
    *   - `restoreToCorpus()`
