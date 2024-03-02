@@ -26,6 +26,13 @@ export type MergeCode = [a: string, b: string]
 
 export let EOF = String.fromCharCode(4)
 
+/** @description for BPETokenizer.fromJSON() */
+export type BPETokenizerJSON = {
+  version: 1
+  token_table: [chars: string, weight: number][]
+  merge_codes: CompactMerge[]
+}
+
 export class BPETokenizer {
   /** @description index for lookup */
   char_to_token: Record<string, Token> = {}
@@ -57,7 +64,7 @@ export class BPETokenizer {
   /** @description added by this.addToCorpus() */
   corpus_in_code: string[] = []
 
-  toJSON() {
+  toJSON(): BPETokenizerJSON {
     let { merge_tokens } = this
     let token_table: [chars: string, weight: number][] = []
     token_loop: for (let token of this.token_table) {
@@ -71,9 +78,11 @@ export class BPETokenizer {
     return {
       version: 1,
       token_table,
-      merge_codes: merge_tokens.map(
-        ([a, b, c]) => [a.code, b.code, c.original_weight] as const,
-      ),
+      merge_codes: merge_tokens.map(([a, b, c]) => [
+        a.code,
+        b.code,
+        c.original_weight,
+      ]),
     }
   }
 
@@ -82,7 +91,7 @@ export class BPETokenizer {
     this.from_vector_index = null
   }
 
-  fromJSON(json: ReturnType<BPETokenizer['toJSON']>) {
+  fromJSON(json: BPETokenizerJSON) {
     if (
       json.version !== 1 ||
       !Array.isArray(json.token_table) ||

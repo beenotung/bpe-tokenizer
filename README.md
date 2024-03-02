@@ -58,12 +58,8 @@ export class BPETokenizer {
   /** @description token.index -> Token */
   token_table: Token[]
 
-  toJSON(): {
-    version: number
-    token_table: [chars: string, weight: number][]
-    merge_codes: (readonly [string, string, number])[]
-  }
-  fromJSON(json: ReturnType<BPETokenizer['toJSON']>): void
+  toJSON(): BPETokenizerJSON
+  fromJSON(json: BPETokenizerJSON): void
 
   /**
    * @description add new content to corpus.
@@ -155,6 +151,13 @@ export type MergeToken = [a: Token, b: Token, c: Token]
  * @description to be stored to file for restoring
  */
 export type CompactMerge = [a_code: string, b_code: string, c_weight: number]
+
+/** @description for BPETokenizer.fromJSON() */
+export type BPETokenizerJSON = {
+  version: 1
+  token_table: [chars: string, weight: number][]
+  merge_codes: CompactMerge[]
+}
 ```
 
 ## License
