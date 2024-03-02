@@ -1,9 +1,7 @@
 import { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
 import { DBProxy, Token, createProxy } from './proxy'
-import BetterSqlite from 'better-sqlite3'
-import { join } from 'path'
-
-export let EOF = String.fromCharCode(4)
+import { migrationSQL } from './migration'
+import { EOF } from '../core'
 
 /**
  * @description a + b -> c, e.g. "app" + "le" -> "apple"
@@ -29,19 +27,41 @@ export class BPETokenizerDB {
   merge_codes: MergeCode[]
 
   /** @returns number | null */
-  protected select_last_corpus_id: BetterSqlite.Statement
+  protected select_last_corpus_id: { get(): number | null }
+
+  /** @returns array of id, content_code */
+  protected select_corpus_by_code: {
+    all(bindings: { code: string }): { id: number; content_code: string }[]
+  }
+
+  protected update_corpus: {
+    run(bindings: { id: number; content_code: string }): void
+  }
 
   constructor(options: { db: BetterSqlite3Helper.DBInstance }) {
     let { db } = options
-    db.migrate({ migrationsPath: join(__dirname, 'migrations') })
+    db.migrate({ migrations: [migrationSQL] })
     this.db = db
     this.proxy = createProxy({ db })
     this.char_to_token = {}
     this.code_to_token = {}
     this.merge_codes = []
+
     this.select_last_corpus_id = db
       .prepare(/* sql */ `select max(id) from corpus`)
-      .pluck()
+      .pluck() as { get(): any }
+
+    this.select_corpus_by_code = db.prepare(/* sql */ `
+      select id, content_code from corpus
+      where content_code like :code
+      `) as { all(): any[] }
+
+    this.update_corpus = db.prepare(/* sql */ `
+      update corpus
+      set content_code = :content_code
+      where id = :id
+      `)
+
     let { proxy, char_to_token, code_to_token, merge_codes } = this
     for (let token of proxy.token) {
       if (token.id! in proxy.char_token) {
@@ -173,14 +193,12 @@ export class BPETokenizerDB {
   }
 
   applyMerge(merge: MergeToken) {
-    let { proxy, code_to_token, merge_codes } = this
+    let { proxy, code_to_token, merge_codes, update_corpus } = this
     let [a, b, c] = merge
 
     if (!c.id) {
       throw new Error('missing id in token c')
     }
-    proxy.token[c.id!] = c
-    c = proxy.token[c.id!]
 
     let from_code = a.code + b.code
     let to_code = c.code
@@ -188,17 +206,19 @@ export class BPETokenizerDB {
     a.weight -= c.weight
     b.weight -= c.weight
 
+    proxy.token[c.id!] = c
+    c = proxy.token[c.id!]
+
     code_to_token[c.code] = c
 
     proxy.merge.push({ a_id: a.id!, b_id: b.id!, c_id: c.id! })
     merge_codes.push([from_code, to_code])
 
-    for (let corpus of proxy.corpus) {
-      let content = corpus.content_code
-      let new_content = content.replaceAll(from_code, to_code)
-      if (content.length != new_content.length) {
-        corpus.content_code = new_content
-      }
+    for (let corpus of this.select_corpus_by_code.all({
+      code: `%${from_code}%`,
+    })) {
+      corpus.content_code = corpus.content_code.replaceAll(from_code, to_code)
+      update_corpus.run(corpus)
     }
   }
 }

@@ -1,3 +1,4 @@
+export let migrationSQL = /* sql */ `
 -- Up
 create table if not exists corpus (
   id integer primary key
@@ -33,3 +34,4 @@ drop table if exists merge;
 drop table if exists char_token;
 drop table if exists token;
 drop table if exists corpus;
+`

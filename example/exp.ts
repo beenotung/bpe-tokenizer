@@ -1,5 +1,5 @@
 import { startTimer } from '@beenotung/tslib/timer'
-import { BPETokenizerDB } from './core-db'
+import { BPETokenizerDB } from '../core-db/core-db'
 import { db as tokenizer_db } from './db'
 import { count_corpus, load_corpus_list } from './sample-corpus'
 
