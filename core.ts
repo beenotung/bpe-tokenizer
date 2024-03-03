@@ -69,12 +69,16 @@ export class BPETokenizer {
    * The json can be used to restore after restart, or to populate database with BPETokenizerDB.
    */
   toJSON(): BPETokenizerJSON {
+    // cannot iterate from char_to_token directly, because the order will be changed when numeric char exists
+    let { char_to_token } = this
+    let token_table: BPETokenizerJSON['token_table'] = []
+    for (let token of this.token_table) {
+      if (!(token.chars in char_to_token)) break
+      token_table.push([token.chars, token.original_weight])
+    }
     return {
       version: 1,
-      token_table: Object.entries(this.char_to_token).map(([char, token]) => [
-        char,
-        token.original_weight,
-      ]),
+      token_table,
       merge_codes: this.merge_tokens.map(([a, b, c]) => [
         a.code,
         b.code,
