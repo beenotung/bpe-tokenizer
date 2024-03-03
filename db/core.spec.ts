@@ -61,4 +61,19 @@ describe('BPETokenizerDB', () => {
     let vector = tokenizerDB.encodeToVector(content)
     expect(tokenizerDB.decodeVector(vector)).equals(content)
   })
+
+  it('should decode tokens into same result after import from json', () => {
+    let tokenizer = new BPETokenizer()
+    tokenizer.addToCorpus(content)
+    tokenizer.mergeUntil({ min_weight: 2 })
+
+    let tokenizerDB = new BPETokenizerDB({ db })
+    tokenizerDB.fromJSON(tokenizer.toJSON())
+
+    let s1 = tokenizer.decodeTokens(tokenizer.encodeToTokens(content))
+    let s2 = tokenizerDB.decodeTokens(tokenizerDB.encodeToTokens(content))
+
+    expect(s2).to.equals(content)
+    expect(s2).to.equals(s1)
+  })
 })
