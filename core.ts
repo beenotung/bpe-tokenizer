@@ -436,7 +436,7 @@ export class BPETokenizer {
     let a = this.code_to_token[a_code]
     if (!a) throw new Error(`unknown token, a_code: ${JSON.stringify(a_code)}`)
     let b = this.code_to_token[b_code]
-    if (!a) throw new Error(`unknown token, b_code: ${JSON.stringify(b_code)}`)
+    if (!b) throw new Error(`unknown token, b_code: ${JSON.stringify(b_code)}`)
     let index = this.token_table.length
     let code = String.fromCodePoint(index)
     let c: Token = {
