@@ -1,5 +1,6 @@
 import { expect } from 'chai'
 import { BPETokenizer, CompactMerge, Token, compactMerge } from './core'
+import { readFileSync } from 'fs'
 
 let content_abc = 'aaabdaaabac'
 describe(`encode ${content_abc}`, () => {
@@ -132,7 +133,7 @@ describe('JSON export / import', () => {
 
   it('should export to json', () => {
     let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content_abc)
+    tokenizer.addToCorpus(readFileSync(__filename).toString())
     tokenizer.mergeUntil({ min_weight: 2 })
 
     expect(tokenizer.toJSON).not.undefined
