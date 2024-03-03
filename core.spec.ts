@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { BPETokenizer } from './core'
+import { BPETokenizer, CompactMerge, Token, compactMerge } from './core'
 
 let content_abc = 'aaabdaaabac'
 describe(`encode ${content_abc}`, () => {
@@ -148,5 +148,39 @@ describe('JSON export / import', () => {
     let tokenizer = new BPETokenizer()
     tokenizer.fromJSON(JSON.parse(json))
     expect(tokenizer.token_table).deep.equals(token_table)
+  })
+})
+
+describe('resume merges after restart', () => {
+  let merges: CompactMerge[] = []
+  let vector: number[] = []
+  let tokens: Token[] = []
+
+  it('should store merge log', () => {
+    let tokenizer = new BPETokenizer()
+    tokenizer.addToCorpus(content_abc)
+    for (;;) {
+      let merge = tokenizer.findNextMerge()
+      if (!merge) break
+      let [_a, _b, c] = merge
+      if (c.weight < 2) break
+      merges.push(compactMerge(merge))
+      tokenizer.applyMerge(merge)
+    }
+    tokens = tokenizer.token_table
+    vector = tokenizer.encodeToVector(content_abc)
+    expect(merges.length).greaterThan(0)
+    expect(vector.length).greaterThan(0)
+  })
+
+  it('should resume from merge log', () => {
+    let tokenizer = new BPETokenizer()
+    tokenizer.addToCorpus(content_abc)
+    for (let merge of merges) {
+      tokenizer.restoreMerge(merge)
+    }
+    expect(tokenizer.token_table).to.deep.equals(tokens)
+    expect(tokenizer.encodeToVector(content_abc)).to.deep.equals(vector)
+    expect(tokenizer.decodeVector(vector)).to.equals(content_abc)
   })
 })
