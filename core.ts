@@ -69,20 +69,13 @@ export class BPETokenizer {
    * The json can be used to restore after restart, or to populate database with BPETokenizerDB.
    */
   toJSON(): BPETokenizerJSON {
-    let { merge_tokens } = this
-    let token_table: [chars: string, weight: number][] = []
-    token_loop: for (let token of this.token_table) {
-      let char_count = 0
-      for (let _char of token.chars) {
-        char_count++
-        if (char_count > 1) break token_loop
-      }
-      token_table.push([token.chars, token.original_weight])
-    }
     return {
       version: 1,
-      token_table,
-      merge_codes: merge_tokens.map(([a, b, c]) => [
+      token_table: Object.entries(this.char_to_token).map(([char, token]) => [
+        char,
+        token.original_weight,
+      ]),
+      merge_codes: this.merge_tokens.map(([a, b, c]) => [
         a.code,
         b.code,
         c.original_weight,
