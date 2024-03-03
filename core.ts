@@ -432,10 +432,11 @@ export class BPETokenizer {
    * To be used after restart for continuous merging.
    */
   restoreMerge(compactMerge: CompactMerge) {
+    let { code_to_token } = this
     let [a_code, b_code, c_weight] = compactMerge
-    let a = this.code_to_token[a_code]
+    let a = code_to_token[a_code]
     if (!a) throw new Error(`unknown token, a_code: ${JSON.stringify(a_code)}`)
-    let b = this.code_to_token[b_code]
+    let b = code_to_token[b_code]
     if (!b) throw new Error(`unknown token, b_code: ${JSON.stringify(b_code)}`)
     let index = this.token_table.length
     let code = String.fromCodePoint(index)
