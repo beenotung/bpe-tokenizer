@@ -124,6 +124,8 @@ console.log({
 })
 ```
 
+More usage examples see [core-test.ts](./core-test.ts) and the [example](./example/) folder.
+
 ## Typescript Signature
 
 <details>
