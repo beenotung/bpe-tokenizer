@@ -23,7 +23,6 @@ async function main() {
       }
     }
     console.timeEnd('restore merges')
-    debugger
   }
 
   console.time('merge tokens')
