@@ -149,7 +149,6 @@ export class BPETokenizerDB {
 
   /** @description for in-memory BPETokenizer */
   toJSON(): BPETokenizerJSON {
-    debugger
     return {
       version: 1,
       token_table: this.select_token_table

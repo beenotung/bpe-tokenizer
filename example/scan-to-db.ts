@@ -20,7 +20,6 @@ async function main() {
 
   console.time('merge loop')
   for (;;) {
-    debugger
     console.time('findNextMerge')
     let merge = tokenizer.findNextMerge()
     console.timeEnd('findNextMerge')

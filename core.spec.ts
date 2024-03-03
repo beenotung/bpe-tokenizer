@@ -146,9 +146,7 @@ describe('JSON export / import', () => {
 
   it('should import from json', () => {
     let tokenizer = new BPETokenizer()
-    debugger
     tokenizer.fromJSON(JSON.parse(json))
-    debugger
     expect(tokenizer.token_table).deep.equals(token_table)
   })
 })
