@@ -52,6 +52,8 @@ The entity relation diagram (ERD) of BPETokenizerDB is documented in [erd.txt](.
     - as vector (integer id of token)
     - as binary string (compact format)
   - auto create tables if not existing
+  - support larger size of corpus than BPETokenizer
+    - can handle corpus size larger than the RAM can hold
   - easy to obtain statistics on tokens
   - support import from snapshot exported from BPETokenizer
   - support continuos merging after restart
