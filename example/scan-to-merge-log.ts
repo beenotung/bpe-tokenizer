@@ -34,7 +34,7 @@ async function main() {
     let [a, b, c] = merge
     if (c.weight < 2) break
 
-    console.log('new token', [a, b, c])
+    // console.log('new token', [a, b, c])
 
     let json = compactMerge(merge)
     let line = JSON.stringify(json) + '\n'
@@ -43,7 +43,26 @@ async function main() {
     // console.time('apply merge')
     tokenizer.applyMerge(merge)
     // console.timeEnd('apply merge')
+
+    let table_size = tokenizer.token_table.length
+    let zero_count = 0
+    let vector_size = 0
+    for (let token of tokenizer.token_table) {
+      if (token.weight > 0) {
+        vector_size++
+      } else {
+        zero_count++
+      }
+    }
+    let p = (x: number) => '(' + ((x / table_size) * 100).toFixed(1) + '%)'
+    process.stdout.write(
+      `\r table size: ${table_size}` +
+        ` | zero_count: ${zero_count} ${p(zero_count)}` +
+        ` | vector size: ${vector_size} ${p(vector_size)}` +
+        '  ',
+    )
   }
+  process.stdout.write(`\n`)
   console.timeEnd('merge tokens')
 }
 main().catch(e => console.error(e))
