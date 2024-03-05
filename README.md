@@ -238,9 +238,10 @@ export type CompactMerge = [a_code: string, b_code: string, c_weight: number]
 
 /** @description for BPETokenizer.fromJSON() */
 export type BPETokenizerJSON = {
-  version: 1
-  token_table: [chars: string, weight: number][]
-  merge_codes: CompactMerge[]
+  version: 2
+  char_count: number
+  token_table: [chars: string, weight: number, original_weight: number][]
+  merge_codes: [a_code: string, b_code: string, c_code: string][]
 }
 ```
 
