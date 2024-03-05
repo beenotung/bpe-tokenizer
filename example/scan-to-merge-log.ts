@@ -1,6 +1,5 @@
-import { appendFileSync, createReadStream, existsSync, mkdirSync } from 'fs'
+import { appendFileSync, existsSync, readFileSync } from 'fs'
 import { BPETokenizer, compactMerge } from '../core'
-import { stream_lines } from '@beenotung/tslib/file-stream'
 import { load_corpus_list } from './sample-corpus'
 
 async function main() {
@@ -16,11 +15,11 @@ async function main() {
 
   if (existsSync(mergeFile)) {
     console.time('restore merges')
-    for await (let line of stream_lines(createReadStream(mergeFile))) {
-      if (line) {
-        let merge = JSON.parse(line)
-        tokenizer.restoreMerge(merge)
-      }
+    let lines = readFileSync(mergeFile).toString().split('\n')
+    lines.pop()
+    for (let line of lines) {
+      let merge = JSON.parse(line)
+      tokenizer.restoreMerge(merge)
     }
     console.timeEnd('restore merges')
   }
@@ -59,6 +58,7 @@ async function main() {
       `\r table size: ${table_size}` +
         ` | zero_count: ${zero_count} ${p(zero_count)}` +
         ` | vector size: ${vector_size} ${p(vector_size)}` +
+        ` | new token weight: ${c.weight}` +
         '  ',
     )
   }

@@ -1,7 +1,6 @@
 import { BPETokenizer, BPETokenizerJSON } from '../core'
 import { load_corpus_list } from './sample-corpus'
-import { createReadStream, writeFileSync } from 'fs'
-import { stream_lines } from '@beenotung/tslib/file-stream'
+import { readFileSync, writeFileSync } from 'fs'
 
 async function main() {
   let mergeFile = 'merge.log'
@@ -23,11 +22,11 @@ async function main() {
   tokenizer.corpus_in_code = []
 
   console.time('restore merges')
-  for await (let line of stream_lines(createReadStream(mergeFile))) {
-    if (line) {
-      let merge = JSON.parse(line)
-      tokenizer.restoreMerge(merge)
-    }
+  let lines = readFileSync(mergeFile).toString().split('\n')
+  lines.pop()
+  for (let line of lines) {
+    let merge = JSON.parse(line)
+    tokenizer.restoreMerge(merge)
   }
   console.timeEnd('restore merges')
 
