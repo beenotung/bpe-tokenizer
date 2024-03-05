@@ -1,7 +1,7 @@
 import DB, { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
 import { DBProxy, Token, createProxy } from './proxy'
 import { migrationSQL } from './migration'
-import { BPETokenizerJSON, EOF } from '../core'
+import { BPETokenizerJSON, CompactMerge, EOF } from '../core'
 
 /**
  * @description a + b -> c, e.g. "app" + "le" -> "apple"
@@ -531,6 +531,31 @@ export class BPETokenizerDB {
       }
     }
     return content
+  }
+
+  /**
+   * @description restore merge produced from `compactMerge(BPETokenizer.findNextMerge())`.
+   * To be used after restart for continuous merging.
+   */
+  restoreMerge(compactMerge: CompactMerge) {
+    let { proxy, code_to_token } = this
+    let [a_code, b_code, c_weight] = compactMerge
+    a_code = String.fromCodePoint(a_code.codePointAt(0)! + 1)
+    b_code = String.fromCodePoint(b_code.codePointAt(0)! + 1)
+    let a = code_to_token[a_code]
+    if (!a) throw new Error(`unknown token, a_code: ${JSON.stringify(a_code)}`)
+    let b = code_to_token[b_code]
+    if (!b) throw new Error(`unknown token, b_code: ${JSON.stringify(b_code)}`)
+    let new_id = proxy.token.length + 1
+    let code = String.fromCodePoint(new_id)
+    let c: Token = {
+      chars: a.chars + b.chars,
+      weight: c_weight,
+      original_weight: c_weight,
+      code,
+      id: new_id,
+    }
+    this.applyMerge([a, b, c])
   }
 }
 
