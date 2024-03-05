@@ -20,17 +20,18 @@ export type MergeToken = [a: Token, b: Token, c: Token]
 export type CompactMerge = [a_code: string, b_code: string, c_weight: number]
 
 /**
- * @description replace a into b
+ * @description replace from_code (a_code + b_code) into to_code (c_code)
  */
-export type MergeCode = [a: string, b: string]
+type MergeCode = [from_code: string, to_code: string]
 
 export let EOF = String.fromCharCode(4)
 
 /** @description for BPETokenizer.fromJSON() */
 export type BPETokenizerJSON = {
-  version: 1
-  token_table: [chars: string, weight: number][]
-  merge_codes: CompactMerge[]
+  version: 2
+  char_count: number
+  token_table: [chars: string, weight: number, original_weight: number][]
+  merge_codes: [a_code: string, b_code: string, c_code: string][]
 }
 
 export class BPETokenizer {
@@ -69,20 +70,18 @@ export class BPETokenizer {
    * The json can be used to restore after restart, or to populate database with BPETokenizerDB.
    */
   toJSON(): BPETokenizerJSON {
-    // cannot iterate from char_to_token directly, because the order will be changed when numeric char exists
-    let { char_to_token } = this
-    let token_table: BPETokenizerJSON['token_table'] = []
-    for (let token of this.token_table) {
-      if (!(token.chars in char_to_token)) break
-      token_table.push([token.chars, token.original_weight])
-    }
     return {
-      version: 1,
-      token_table,
+      version: 2,
+      char_count: Object.keys(this.char_to_token).length,
+      token_table: this.token_table.map(token => [
+        token.chars,
+        token.weight,
+        token.original_weight,
+      ]),
       merge_codes: this.merge_tokens.map(([a, b, c]) => [
         a.code,
         b.code,
-        c.original_weight,
+        c.code,
       ]),
     }
   }
@@ -90,11 +89,12 @@ export class BPETokenizer {
   /** @description restore from json (after restart) */
   fromJSON(json: BPETokenizerJSON) {
     if (
-      json.version !== 1 ||
+      json.version !== 2 ||
       !Array.isArray(json.token_table) ||
       !Array.isArray(json.merge_codes)
     )
       throw new Error('invalid format')
+    let { char_count } = json
     let newInstance = new BPETokenizer()
     let {
       char_to_token,
@@ -104,37 +104,26 @@ export class BPETokenizer {
       merge_codes,
     } = newInstance
     Object.assign(this, newInstance)
-    for (let [char, weight] of json.token_table) {
+    for (let [chars, weight, original_weight] of json.token_table) {
       let index = token_table.length
-      let code = String.fromCodePoint(index)
+      let code = String.fromCodePoint(index + 1)
       let token: Token = {
-        chars: char,
+        chars,
         weight,
-        original_weight: weight,
+        original_weight,
         code,
         index,
       }
-      char_to_token[char] = token
+      if (index < char_count) {
+        char_to_token[chars] = token
+      }
       code_to_token[code] = token
       token_table[index] = token
     }
-    for (let [a_code, b_code, c_weight] of json.merge_codes) {
+    for (let [a_code, b_code, c_code] of json.merge_codes) {
       let a: Token = code_to_token[a_code]
       let b: Token = code_to_token[b_code]
-      let new_index = token_table.length
-      let new_code = String.fromCodePoint(new_index)
-      let c: Token = {
-        chars: a.chars + b.chars,
-        weight: c_weight,
-        original_weight: c_weight,
-        code: new_code,
-        index: new_index,
-      }
-      a.weight -= c_weight
-      b.weight -= c_weight
-      char_to_token[c.chars] = c
-      code_to_token[c.code] = c
-      token_table[c.index] = c
+      let c: Token = code_to_token[c_code]
       merge_tokens.push([a, b, c])
       merge_codes.push([a.code + b.code, c.code])
     }
@@ -157,12 +146,12 @@ export class BPETokenizer {
       let token = char_to_token[char]
       if (!token) {
         let index = token_table.length
-        let code = String.fromCodePoint(index)
+        let code = String.fromCodePoint(index + 1)
         token = {
           chars: char,
           weight: 1,
           original_weight: 1,
-          code: code,
+          code,
           index,
         }
         char_to_token[char] = token
@@ -272,7 +261,7 @@ export class BPETokenizer {
     if (!max_c_weight) return null
 
     let new_index = this.token_table.length
-    let new_code = String.fromCodePoint(new_index)
+    let new_code = String.fromCodePoint(new_index + 1)
     let max_c: Token = {
       chars: max_a!.chars + max_b!.chars,
       weight: max_c_weight,
@@ -443,7 +432,7 @@ export class BPETokenizer {
     let b = code_to_token[b_code]
     if (!b) throw new Error(`unknown token, b_code: ${JSON.stringify(b_code)}`)
     let index = this.token_table.length
-    let code = String.fromCodePoint(index)
+    let code = String.fromCodePoint(index + 1)
     let c: Token = {
       chars: a.chars + b.chars,
       weight: c_weight,

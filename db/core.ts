@@ -36,12 +36,12 @@ export class BPETokenizerDB {
 
   /** @description used by toJSON() */
   protected select_token_table: {
-    all(): { chars: string; original_weight: number }[]
+    all(): { chars: string; weight: number; original_weight: number }[]
   }
 
   /** @description used by toJSON() */
   protected select_merge: {
-    all(): { a_code: string; b_code: string; original_weight: number }[]
+    all(): { a_code: string; b_code: string; c_code: string }[]
   }
 
   /** @description used by compactVectorIndex() */
@@ -85,9 +85,8 @@ export class BPETokenizerDB {
       `) as { all(): any[] }
 
     this.select_token_table = db.prepare(/* sql */ `
-      select chars, original_weight
-      from char_token
-      inner join token on token.id = char_token.id
+      select chars, weight, original_weight
+      from token
       order by token.id asc
       `) as { all(): any[] }
 
@@ -95,7 +94,7 @@ export class BPETokenizerDB {
       select
         a.code as a_code
       , b.code as b_code
-      , c.original_weight
+      , c.code as c_code
       from merge
       inner join token a on a.id = merge.a_id
       inner join token b on b.id = merge.b_id
@@ -149,62 +148,53 @@ export class BPETokenizerDB {
 
   /** @description for in-memory BPETokenizer */
   toJSON(): BPETokenizerJSON {
+    let { proxy } = this
     return {
-      version: 1,
+      version: 2,
+      char_count: proxy.char_token.length,
       token_table: this.select_token_table
         .all()
-        .map(token => [token.chars, token.original_weight]),
-      merge_codes: this.select_merge.all().map(merge => {
-        let a_code = String.fromCodePoint(merge.a_code.codePointAt(0)! - 1)
-        let b_code = String.fromCodePoint(merge.b_code.codePointAt(0)! - 1)
-        return [a_code, b_code, merge.original_weight]
-      }),
+        .map(token => [token.chars, token.weight, token.original_weight]),
+      merge_codes: this.select_merge
+        .all()
+        .map(merge => [merge.a_code, merge.b_code, merge.c_code]),
     }
   }
 
   /** @description delete all existing tokens and corpus, then import tokens from the json */
   fromJSON(json: BPETokenizerJSON) {
     if (
-      json.version !== 1 ||
+      json.version !== 2 ||
       !Array.isArray(json.token_table) ||
       !Array.isArray(json.merge_codes)
     )
       throw new Error('invalid format')
+    let { char_count } = json
     this.reset()
     let { db, proxy, code_to_token } = this
     let { token: token_table, char_token, merge } = proxy
     let token_id = 0
-    for (let [char, weight] of json.token_table) {
+    for (let [chars, weight, original_weight] of json.token_table) {
       token_id++
       let code = String.fromCodePoint(token_id)
       let token: Token = {
-        chars: char,
+        chars,
         weight,
-        original_weight: weight,
+        original_weight,
         code,
         id: token_id,
       }
       token_table[token_id] = token
-      char_token[token_id] = { id: token_id }
+      if (token_id <= char_count) {
+        char_token[token_id] = { id: token_id }
+      }
       code_to_token[code] = token
     }
-    for (let [a_code, b_code, c_weight] of json.merge_codes) {
-      a_code = String.fromCodePoint(a_code.codePointAt(0)! + 1)
-      b_code = String.fromCodePoint(b_code.codePointAt(0)! + 1)
-      token_id++
-      let code = String.fromCodePoint(token_id)
-      let a = code_to_token[a_code]
-      let b = code_to_token[b_code]
-      let c: Token = {
-        chars: a.chars + b.chars,
-        weight: c_weight,
-        original_weight: c_weight,
-        code,
-        id: token_id,
-      }
-      token_table[token_id] = c
-      merge.push({ a_id: a.id!, b_id: b.id!, c_id: c.id! })
-      code_to_token[code] = c
+    for (let [a_code, b_code, c_code] of json.merge_codes) {
+      let a_id = code_to_token[a_code].id!
+      let b_id = code_to_token[b_code].id!
+      let c_id = code_to_token[c_code].id!
+      merge.push({ a_id, b_id, c_id })
     }
     let that = new BPETokenizerDB({ db })
     Object.assign(this, that)
@@ -540,8 +530,6 @@ export class BPETokenizerDB {
   restoreMerge(compactMerge: CompactMerge) {
     let { proxy, code_to_token } = this
     let [a_code, b_code, c_weight] = compactMerge
-    a_code = String.fromCodePoint(a_code.codePointAt(0)! + 1)
-    b_code = String.fromCodePoint(b_code.codePointAt(0)! + 1)
     let a = code_to_token[a_code]
     if (!a) throw new Error(`unknown token, a_code: ${JSON.stringify(a_code)}`)
     let b = code_to_token[b_code]
