@@ -306,7 +306,12 @@ export class BPETokenizerDB {
    * @description called by `mergeUntil()`.
    * Can be used to implement custom iteration conditions.
    */
-  findNextMerge(): MergeToken | null
+  findNextMerge(options?: {
+    /** @default 2 */
+    min_weight?: number
+    /** @default unlimited */
+    max_length?: number
+  }): MergeToken | null
 
   /**
    * @description called by `mergeUntil()`.
@@ -320,6 +325,8 @@ export class BPETokenizerDB {
   mergeUntil(options?: {
     /** @default 2 */
     min_weight?: number
+    /** @default unlimited */
+    max_length?: number
     /** @default unlimited */
     max_iterations?: number
   }): void
