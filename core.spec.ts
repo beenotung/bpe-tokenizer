@@ -1,5 +1,12 @@
 import { expect } from 'chai'
-import { BPETokenizer, CompactMerge, Token, compactMerge } from './core'
+import {
+  BPETokenizer,
+  CompactMerge,
+  EOF,
+  MergeToken,
+  Token,
+  compactMerge,
+} from './core'
 import { readFileSync } from 'fs'
 
 let content_abc = 'aaabdaaabac'
@@ -183,5 +190,223 @@ describe('resume merges after restart', () => {
     expect(tokenizer.token_table).to.deep.equals(tokens)
     expect(tokenizer.encodeToVector(content_abc)).to.deep.equals(vector)
     expect(tokenizer.decodeVector(vector)).to.equals(content_abc)
+  })
+})
+
+describe('encodeToVector', () => {
+  it('should invalidate after each merge', () => {
+    let content = 'x'.repeat(10)
+
+    // step 0: _ 10x _
+    // step 1: _ 2x 2x 2x 2x 2x _
+    // step 2: _ 4x 4x 2x _
+
+    let tokenizer = new BPETokenizer()
+    tokenizer.addToCorpus(content)
+
+    expect(tokenizer.encodeToVector(content)).deep.equals([
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    ])
+
+    let merge = tokenizer.findNextMerge({ max_length: 5 })
+    tokenizer.applyMerge(merge!)
+    expect(tokenizer.encodeToVector(content)).deep.equals([1, 1, 1, 1, 1])
+
+    merge = tokenizer.findNextMerge({ max_length: 5 })
+    tokenizer.applyMerge(merge!)
+    expect(tokenizer.encodeToVector(content)).deep.equals([2, 2, 1])
+  })
+})
+
+describe('find next merge within length limit', () => {
+  let content = 'x'.repeat(10)
+
+  // step 0: _ 10x _
+  // step 1: _ 2x 2x 2x 2x 2x _
+  // step 2: _ 4x 4x 2x _
+
+  let tokenizer: BPETokenizer
+  beforeEach(() => {
+    tokenizer = new BPETokenizer()
+    tokenizer.addToCorpus(content)
+  })
+
+  function expectMerge(merge: MergeToken | null, a: string, b: string) {
+    expect(merge).not.null
+    expect(merge![0].chars).to.equals(a)
+    expect(merge![1].chars).to.equals(b)
+    expect(merge![2].chars).to.equals(a + b)
+  }
+
+  it('should find merge within length limit', () => {
+    let merge = tokenizer.findNextMerge()
+    expectMerge(merge, 'x', 'x')
+    tokenizer.applyMerge(merge!)
+
+    merge = tokenizer.findNextMerge({ max_length: 4 })
+    expectMerge(merge, 'xx', 'xx')
+    expect(merge![2].chars).to.equals('xxxx')
+  })
+
+  it('should not find merge exceed length limit', () => {
+    let merge = tokenizer.findNextMerge()
+    expectMerge(merge, 'x', 'x')
+    tokenizer.applyMerge(merge!)
+
+    merge = tokenizer.findNextMerge({ max_length: 3 })
+    expect(merge).null
+  })
+})
+
+describe('find next merge within weight limit', () => {
+  let content = 'x'.repeat(10)
+
+  // step 0: _ 10x _
+  // step 1: _ 2x 2x 2x 2x 2x _
+  // step 2: _ 4x 4x 2x _
+
+  let tokenizer: BPETokenizer
+  beforeEach(() => {
+    tokenizer = new BPETokenizer()
+    tokenizer.addToCorpus(content)
+  })
+
+  it('should find merge above weight limit', () => {
+    let merge = tokenizer.findNextMerge({ min_weight: 5 })
+    expect(merge).not.null
+    expect(merge![0].chars).equals('x')
+    expect(merge![1].chars).equals('x')
+    expect(merge![2].chars).equals('xx')
+  })
+
+  it('should not find merge below weight limit', () => {
+    let merge = tokenizer.findNextMerge({ min_weight: 6 })
+    expect(merge).null
+  })
+
+  it('should find all merges if weight limit is not specified', () => {
+    // _ x x x x x x x x x x _
+    let merge = tokenizer.findNextMerge()
+    expect(merge).not.null
+    expect(merge![0].chars).equals('x')
+    expect(merge![1].chars).equals('x')
+    expect(merge![2].chars).equals('xx')
+    tokenizer.applyMerge(merge!)
+
+    // _ xx xx xx xx xx _
+    merge = tokenizer.findNextMerge()
+    expect(merge).not.null
+    expect(merge![0].chars).equals('xx')
+    expect(merge![1].chars).equals('xx')
+    expect(merge![2].chars).equals('xxxx')
+    tokenizer.applyMerge(merge!)
+
+    // _ xxxx xxxx xx _
+    merge = tokenizer.findNextMerge()
+    expect(merge).null
+  })
+})
+
+describe('mergeUntil', () => {
+  let content = 'x'.repeat(10)
+
+  let tokenizer: BPETokenizer
+  function setup() {
+    tokenizer = new BPETokenizer()
+    tokenizer.addToCorpus(content)
+  }
+  beforeEach(setup)
+
+  it('should merge until over min weight limit', () => {
+    // step 0: _ x x x x x x x x x x _
+    // step 1: _ xx xx xx xx xx _
+    // step 2: _ xxxx xxxx xx _
+    tokenizer.mergeUntil({ min_weight: 2 })
+
+    expect(tokenizer.token_table).lengthOf(4)
+
+    expect(tokenizer.token_table[0].chars).to.equal(EOF)
+    expect(tokenizer.token_table[0].weight).to.equal(2)
+
+    expect(tokenizer.token_table[1].chars).to.equal('x')
+    expect(tokenizer.token_table[1].weight).to.equal(0)
+
+    expect(tokenizer.token_table[2].chars).to.equal('xx')
+    expect(tokenizer.token_table[2].weight).to.equal(1)
+
+    expect(tokenizer.token_table[3].chars).to.equal('xxxx')
+    expect(tokenizer.token_table[3].weight).to.equal(2)
+
+    setup()
+
+    // step 0: _ x x x x x x x x x x _
+    // step 1: _ xx xx xx xx xx _
+    tokenizer.mergeUntil({ min_weight: 3 })
+
+    expect(tokenizer.token_table).lengthOf(3)
+
+    expect(tokenizer.token_table[0].chars).to.equal(EOF)
+    expect(tokenizer.token_table[0].weight).to.equal(2)
+
+    expect(tokenizer.token_table[1].chars).to.equal('x')
+    expect(tokenizer.token_table[1].weight).to.equal(0)
+
+    expect(tokenizer.token_table[2].chars).to.equal('xx')
+    expect(tokenizer.token_table[2].weight).to.equal(5)
+  })
+
+  it('should merge until over max length limit', () => {
+    // step 0: _ x x x x x x x x x x _
+    // step 1: _ xx xx xx xx xx _
+    // step 2: _ xxxx xxxx xx _
+    tokenizer.mergeUntil({ max_length: 4 })
+
+    expect(tokenizer.token_table).lengthOf(4)
+
+    expect(tokenizer.token_table[0].chars).to.equal(EOF)
+    expect(tokenizer.token_table[0].weight).to.equal(2)
+
+    expect(tokenizer.token_table[1].chars).to.equal('x')
+    expect(tokenizer.token_table[1].weight).to.equal(0)
+
+    expect(tokenizer.token_table[2].chars).to.equal('xx')
+    expect(tokenizer.token_table[2].weight).to.equal(1)
+
+    expect(tokenizer.token_table[3].chars).to.equal('xxxx')
+    expect(tokenizer.token_table[3].weight).to.equal(2)
+
+    setup()
+
+    // step 0: _ x x x x x x x x x x _
+    // step 1: _ xx xx xx xx xx _
+    tokenizer.mergeUntil({ max_length: 3 })
+
+    expect(tokenizer.token_table).lengthOf(3)
+
+    expect(tokenizer.token_table[0].chars).to.equal(EOF)
+    expect(tokenizer.token_table[0].weight).to.equal(2)
+
+    expect(tokenizer.token_table[1].chars).to.equal('x')
+    expect(tokenizer.token_table[1].weight).to.equal(0)
+
+    expect(tokenizer.token_table[2].chars).to.equal('xx')
+    expect(tokenizer.token_table[2].weight).to.equal(5)
+  })
+
+  it('should merge until over max length and min weight limit', () => {
+    // step 0: _ x x x x x x x x x x _
+    // step 1: _ xx xx xx xx xx _
+    tokenizer.mergeUntil({ min_weight: 3, max_length: 3 })
+
+    expect(tokenizer.token_table).lengthOf(3)
+
+    expect(tokenizer.token_table[0].chars).to.equal(EOF)
+    expect(tokenizer.token_table[0].weight).to.equal(2)
+
+    expect(tokenizer.token_table[1].chars).to.equal('x')
+    expect(tokenizer.token_table[1].weight).to.equal(0)
+
+    expect(tokenizer.token_table[2].chars).to.equal('xx')
+    expect(tokenizer.token_table[2].weight).to.equal(5)
   })
 })

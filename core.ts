@@ -204,8 +204,16 @@ export class BPETokenizer {
    * @description called by `mergeUntil()`.
    * Can be used to implement custom iteration conditions.
    */
-  findNextMerge(): MergeToken | null {
+  findNextMerge(options?: {
+    /** @default 2 */
+    min_weight?: number
+    /** @default unlimited */
+    max_length?: number
+  }): MergeToken | null {
     let { code_to_token } = this
+
+    let max_length = options?.max_length
+    let min_weight = options?.min_weight || 2
 
     // a -> b -> count
     let a_b_c_weights = new Map<Token, Map<Token, number>>()
@@ -219,7 +227,10 @@ export class BPETokenizer {
       let a: Token | null = null
       for (let code of sample_in_code) {
         let b = code_to_token[code]
-        if (a) {
+        if (
+          a &&
+          (!max_length || a.chars.length + b.chars.length <= max_length)
+        ) {
           let b_c_weights = a_b_c_weights.get(a)
           if (!b_c_weights) {
             b_c_weights = new Map()
@@ -259,6 +270,7 @@ export class BPETokenizer {
     }
 
     if (!max_c_weight) return null
+    if (min_weight && max_c_weight < min_weight) return null
 
     let new_index = this.token_table.length
     let new_code = String.fromCodePoint(new_index + 1)
@@ -292,9 +304,8 @@ export class BPETokenizer {
 
     a.weight -= c.weight
     b.weight -= c.weight
-    if (a.weight == 0 || b.weight == 0) {
-      this.invalidateVectorIndex()
-    }
+
+    this.invalidateVectorIndex()
 
     code_to_token[c.code] = c
     token_table.push(c)
@@ -315,19 +326,18 @@ export class BPETokenizer {
     /** @default 2 */
     min_weight?: number
     /** @default unlimited */
+    max_length?: number
+    /** @default unlimited */
     max_iterations?: number
   }) {
-    let min_weight = options?.min_weight || 2
     let max_iterations = options?.max_iterations
     for (
       let iteration = 1;
       !max_iterations || iteration <= max_iterations;
       iteration++
     ) {
-      let merge = this.findNextMerge()
+      let merge = this.findNextMerge(options)
       if (!merge) break
-      let [_a, _b, c] = merge
-      if (c.weight < min_weight) break
       this.applyMerge(merge)
     }
   }
