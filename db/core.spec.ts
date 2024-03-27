@@ -9,6 +9,11 @@ import {
 import { unlinkSync } from 'fs'
 import { unProxy } from 'better-sqlite3-proxy'
 
+/** @description for legacy format */
+function wrapContent(content: string) {
+  return EOF + content + EOF
+}
+
 let content = 'aaabdaaabac'
 let dbFile = 'BPE-tokenizer-test.sqlite3'
 
@@ -26,7 +31,7 @@ after(() => {
 describe('BPETokenizerDB', () => {
   it('should import from BPETokenizer', () => {
     let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content)
+    tokenizer.addToCorpus(wrapContent(content))
     tokenizer.mergeUntil({ min_weight: 2 })
 
     let tokenizerDB = new BPETokenizerDB({ db })
@@ -37,11 +42,11 @@ describe('BPETokenizerDB', () => {
 
   it('should encode to vector as same as BPETokenizer', () => {
     let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content)
+    tokenizer.addToCorpus(wrapContent(content))
     tokenizer.mergeUntil({ min_weight: 2 })
 
     let tokenizerDB = new BPETokenizerDB({ db })
-    tokenizerDB.addToCorpus(1, content)
+    tokenizerDB.addToCorpus(1, wrapContent(content))
     tokenizerDB.mergeUntil({ min_weight: 2 })
     // tokenizerDB.fromJSON(tokenizer.toJSON())
 
@@ -52,7 +57,7 @@ describe('BPETokenizerDB', () => {
 
   it('should decode tokens', () => {
     let tokenizerDB = new BPETokenizerDB({ db })
-    tokenizerDB.addToCorpus(1, content)
+    tokenizerDB.addToCorpus(1, wrapContent(content))
     tokenizerDB.mergeUntil({ min_weight: 2 })
 
     let tokens = tokenizerDB.encodeToTokens(content)
@@ -61,7 +66,7 @@ describe('BPETokenizerDB', () => {
 
   it('should decode from vector', () => {
     let tokenizerDB = new BPETokenizerDB({ db })
-    tokenizerDB.addToCorpus(1, content)
+    tokenizerDB.addToCorpus(1, wrapContent(content))
     tokenizerDB.mergeUntil({ min_weight: 2 })
 
     let vector = tokenizerDB.encodeToVector(content)
@@ -70,7 +75,7 @@ describe('BPETokenizerDB', () => {
 
   it('should decode tokens into same result after import from json', () => {
     let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content)
+    tokenizer.addToCorpus(wrapContent(content))
     tokenizer.mergeUntil({ min_weight: 2 })
 
     let tokenizerDB = new BPETokenizerDB({ db })
@@ -94,7 +99,7 @@ describe('encodeToVector', () => {
 
     resetBPETokenizerDB(db)
     let tokenizer = new BPETokenizerDB({ db })
-    tokenizer.addToCorpus(1, content)
+    tokenizer.addToCorpus(1, wrapContent(content))
 
     expect(tokenizer.encodeToVector(content)).deep.equals([
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -121,7 +126,7 @@ describe('find next merge within length limit', () => {
   beforeEach(() => {
     resetBPETokenizerDB(db)
     tokenizer = new BPETokenizerDB({ db })
-    tokenizer.addToCorpus(1, content)
+    tokenizer.addToCorpus(1, wrapContent(content))
   })
 
   function expectMerge(merge: MergeToken | null, a: string, b: string) {
@@ -162,7 +167,7 @@ describe('find next merge within weight limit', () => {
   beforeEach(() => {
     resetBPETokenizerDB(db)
     tokenizer = new BPETokenizerDB({ db })
-    tokenizer.addToCorpus(1, content)
+    tokenizer.addToCorpus(1, wrapContent(content))
   })
 
   it('should find merge above weight limit', () => {
@@ -208,7 +213,7 @@ describe('mergeUntil', () => {
   function setup() {
     resetBPETokenizerDB(db)
     tokenizer = new BPETokenizerDB({ db })
-    tokenizer.addToCorpus(1, content)
+    tokenizer.addToCorpus(1, wrapContent(content))
   }
   beforeEach(setup)
 

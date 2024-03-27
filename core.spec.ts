@@ -9,6 +9,11 @@ import {
 } from './core'
 import { readFileSync } from 'fs'
 
+/** @description for legacy format */
+function wrapContent(content: string) {
+  return EOF + content + EOF
+}
+
 let content_abc = 'aaabdaaabac'
 describe(`encode ${content_abc}`, () => {
   it(`should encode "${content_abc}" into segments "aaab d aaab a c"`, () => {
@@ -76,7 +81,7 @@ describe(`encode ${content_abc}`, () => {
      * 4 -> 7: aaab x 2
      */
     let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content_abc)
+    tokenizer.addToCorpus(wrapContent( content_abc))
     tokenizer.mergeUntil({ min_weight: 2 })
     tokenizer.compactVectorIndex()
     expect(tokenizer.encodeToVector(content_abc)).to.deep.equal([4, 2, 4, 1, 3])
@@ -90,7 +95,7 @@ describe(`encode ${content_x}`, () => {
     //       merge x + x: "_ xx xx xx xx x _"
     //     merge xx + xx: "xxxx xxxx x"
     let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content_x)
+    tokenizer.addToCorpus(wrapContent(content_x))
     tokenizer.mergeUntil({ min_weight: 2 })
     expect(
       tokenizer
@@ -127,7 +132,7 @@ describe(`encode ${content_x}`, () => {
      * 2 -> 3: XXXX x 2
      */
     let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content_x)
+    tokenizer.addToCorpus(wrapContent(content_x))
     tokenizer.mergeUntil({ min_weight: 2 })
     tokenizer.compactVectorIndex()
     expect(tokenizer.encodeToVector(content_x)).to.deep.equal([2, 2, 1])
@@ -140,7 +145,7 @@ describe('JSON export / import', () => {
 
   it('should export to json', () => {
     let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(readFileSync(__filename).toString())
+    tokenizer.addToCorpus(wrapContent(readFileSync(__filename).toString()))
     tokenizer.mergeUntil({ min_weight: 2 })
 
     expect(tokenizer.toJSON).not.undefined
@@ -166,7 +171,7 @@ describe('resume merges after restart', () => {
 
   it('should store merge log', () => {
     let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content_abc)
+    tokenizer.addToCorpus(wrapContent(content_abc))
     for (;;) {
       let merge = tokenizer.findNextMerge()
       if (!merge) break
@@ -183,7 +188,7 @@ describe('resume merges after restart', () => {
 
   it('should resume from merge log', () => {
     let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content_abc)
+    tokenizer.addToCorpus(wrapContent(content_abc))
     for (let merge of merges) {
       tokenizer.restoreMerge(merge)
     }
@@ -202,7 +207,7 @@ describe('encodeToVector', () => {
     // step 2: _ 4x 4x 2x _
 
     let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content)
+    tokenizer.addToCorpus(wrapContent(content))
 
     expect(tokenizer.encodeToVector(content)).deep.equals([
       1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -228,7 +233,7 @@ describe('find next merge within length limit', () => {
   let tokenizer: BPETokenizer
   beforeEach(() => {
     tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content)
+    tokenizer.addToCorpus(wrapContent(content))
   })
 
   function expectMerge(merge: MergeToken | null, a: string, b: string) {
@@ -268,7 +273,7 @@ describe('find next merge within weight limit', () => {
   let tokenizer: BPETokenizer
   beforeEach(() => {
     tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content)
+    tokenizer.addToCorpus(wrapContent(content))
   })
 
   it('should find merge above weight limit', () => {
@@ -313,7 +318,7 @@ describe('mergeUntil', () => {
   let tokenizer: BPETokenizer
   function setup() {
     tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(content)
+    tokenizer.addToCorpus(wrapContent(content))
   }
   beforeEach(setup)
 
