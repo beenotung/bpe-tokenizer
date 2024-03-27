@@ -396,9 +396,11 @@ export class BPETokenizerDB {
     proxy.merge.push({ a_id: a.id!, b_id: b.id!, c_id: c.id! })
     merge_codes.push([from_code, to_code])
 
-    let corpus_rows = this.select_corpus_by_code.all({
-      code: `%${from_code}%`,
-    })
+    let corpus_rows = from_code.includes('%')
+      ? []
+      : this.select_corpus_by_code.all({
+          code: `%${from_code}%`,
+        })
     if (corpus_rows.length == 0) {
       for (let corpus of proxy.corpus) {
         if (corpus.content_code.includes(from_code)) {
