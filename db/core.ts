@@ -410,9 +410,6 @@ export class BPETokenizerDB {
           })
         }
       }
-      if (corpus_rows.length == 0) {
-        throw new Error('no matched corpus found')
-      }
     }
     for (let corpus of corpus_rows) {
       corpus.content_code = corpus.content_code.replaceAll(from_code, to_code)
