@@ -24,14 +24,64 @@ export type CompactMerge = [a_code: string, b_code: string, c_weight: number]
  */
 type MergeCode = [from_code: string, to_code: string]
 
-export let EOF = String.fromCharCode(4)
-
 /** @description for BPETokenizer.fromJSON() */
 export type BPETokenizerJSON = {
   version: 2
   char_count: number
   token_table: [chars: string, weight: number, original_weight: number][]
   merge_codes: [a_code: string, b_code: string, c_code: string][]
+}
+
+/** @description file separator */
+export let FS = String.fromCharCode(28)
+
+/** @description end of file */
+export let EOF = String.fromCharCode(4)
+
+/** @description "\n" line feed, new line */
+export let LF = '\n'
+
+/** @description "\r" carriage return */
+export let CR = '\r'
+
+export type Markers = {
+  /** @example empty string or \n */
+  begin_marker: string
+  /** @example EOF or \n */
+  end_marker: string
+}
+
+export let fileMarkers: Markers = {
+  begin_marker: FS,
+  end_marker: EOF,
+}
+
+export let lineMarkers: Markers = {
+  begin_marker: CR,
+  end_marker: LF,
+}
+
+/** @description wrap with FS and EOF */
+export function fileContentToCorpus(content: string | Buffer): string {
+  let text = content.toString()
+  return FS + text + EOF
+}
+
+/** @description split into lines, wrap with \r and \n */
+export function linesToCorpus(text: string): string[] {
+  let lines = text.split('\n')
+  return lines.map(line => '\r' + line.trim() + '\n')
+}
+
+/** @description split into lines, trim spaces, wrap with \r and \n */
+export function linesTrimmedToCorpus(text: string): string[] {
+  let lines = text.split('\n')
+  return lines.map(line => {
+    if (line.endsWith('\r')) {
+      line = line.slice(0, line.length - 1)
+    }
+    return '\r' + line + '\n'
+  })
 }
 
 export class BPETokenizer {
@@ -142,7 +192,7 @@ export class BPETokenizer {
   addToCorpus(content: string) {
     let { char_to_token, code_to_token, token_table } = this
     let sample_in_code = ''
-    for (let char of EOF + content + EOF) {
+    for (let char of content) {
       let token = char_to_token[char]
       if (!token) {
         let index = token_table.length

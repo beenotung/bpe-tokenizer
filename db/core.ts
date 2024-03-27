@@ -1,7 +1,7 @@
 import DB, { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
 import { DBProxy, Token, createProxy } from './proxy'
 import { migrationSQL } from './migration'
-import { BPETokenizerJSON, CompactMerge, EOF } from '../core'
+import { BPETokenizerJSON, CompactMerge } from '../core'
 
 /**
  * @description a + b -> c, e.g. "app" + "le" -> "apple"
@@ -220,7 +220,7 @@ export class BPETokenizerDB {
       throw new Error('corpus already added to database')
     }
     let content_code = ''
-    for (let char of EOF + content + EOF) {
+    for (let char of content) {
       let token = char_to_token[char]
       if (!token) {
         let id = token_table.length + 1
