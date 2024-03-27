@@ -51,16 +51,6 @@ export type Markers = {
   end_marker: string
 }
 
-export let fileMarkers: Markers = {
-  begin_marker: FS,
-  end_marker: EOF,
-}
-
-export let lineMarkers: Markers = {
-  begin_marker: CR,
-  end_marker: LF,
-}
-
 /** @description wrap with FS and EOF */
 export function fileContentToCorpus(content: string | Buffer): string {
   let text = content.toString()
