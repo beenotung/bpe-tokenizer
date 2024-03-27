@@ -6,7 +6,7 @@ let file = 'data.txt'
 let maxLines = 100000
 
 if (!existsSync(file)) {
-  execSync(`find $HOME | head -n ${maxLines} > ${file}`)
+  execSync(`find $HOME | grep -v .git | head -n ${maxLines} > ${file}`)
 }
 
 export function count_corpus(): number {
