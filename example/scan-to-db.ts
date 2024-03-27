@@ -14,7 +14,9 @@ async function main() {
     if (corpus.id <= last_post_id) continue
     tokenizer.addToCorpus(corpus.id, corpus.content)
     // tokenizer.restoreToCorpus(corpus.id, corpus.content)
-    timer.tick()
+    if (corpus.content.endsWith('\n')) {
+      timer.tick()
+    }
   }
   timer.end()
 
