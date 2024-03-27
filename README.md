@@ -75,16 +75,30 @@ This package has two optional dependencies. They can be omitted when using `BPET
 ```javascript
 require('bpe-tokenizer')
 {
-  EOF: '\x04',  // string
-  BPETokenizer, // class
-  compactMerge, // function
+  /* main class */
+  BPETokenizer,
+
+  /* constants */
+  FS: '\x1C',
+  EOF: '\x04',
+  LF: '\n',
+  CR: '\r',
+
+  /* helper functions */
+  fileContentToCorpus,
+  linesToCorpus,
+  linesTrimmedToCorpus,
+  compactMerge,
 }
 
 require('bpe-tokenizer/db')
 {
-  BPETokenizerDB,      // class
-  resetBPETokenizerDB, // function
-  connectDB,           // function
+  /* main class */
+  BPETokenizerDB,
+
+  /* helper functions */
+  resetBPETokenizerDB,
+  connectDB,
 }
 ```
 
