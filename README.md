@@ -147,9 +147,11 @@ More usage examples see [core-test.ts](./core-test.ts) and the [example](./examp
 <details>
 <summary>(click to expand)
 
-Type signatures of `BPETokenizer` in `bpe-tokenizer`:
+Type signatures of `BPETokenizer`, helper functions, types and constants in `bpe-tokenizer`:
 
 </summary>
+
+The main class `BPETokenizer`:
 
 ```typescript
 export class BPETokenizer {
@@ -230,23 +232,11 @@ export class BPETokenizer {
    */
   encodeToCode(content: string): string
 }
+```
 
-/**
- * @description to store MergeToken in compact format
- */
-export function compactMerge(merge: MergeToken): CompactMerge
+Object Types:
 
-export type Token = {
-  chars: string
-  /** @description the weight after merge */
-  weight: number
-  /** @description the weight before merge */
-  original_weight: number
-  code: string
-  /** @description including zero-weight tokens in token_table */
-  index: number
-}
-
+```typescript
 /**
  * @description a + b -> c, e.g. "app" + "le" -> "apple"
  */
@@ -266,23 +256,66 @@ export type BPETokenizerJSON = {
 }
 ```
 
+Helper functions:
+
+```typescript
+/** @description wrap with FS and EOF */
+export function fileContentToCorpus(content: string | Buffer): string
+
+/** @description split into lines, wrap with \r and \n */
+export function linesToCorpus(text: string): string[]
+
+/** @description split into lines, trim spaces, wrap with \r and \n */
+export function linesTrimmedToCorpus(text: string): string[]
+
+/**
+ * @description to store MergeToken in compact format
+ */
+export function compactMerge(merge: MergeToken): CompactMerge
+
+export type Token = {
+  chars: string
+  /** @description the weight after merge */
+  weight: number
+  /** @description the weight before merge */
+  original_weight: number
+  code: string
+  /** @description including zero-weight tokens in token_table */
+  index: number
+}
+```
+
+Constants:
+
+```typescript
+/** @description file separator */
+export let FS: string
+
+/** @description end of file */
+export let EOF: string
+
+/** @description "\n" line feed, new line */
+export let LF: string
+
+/** @description "\r" carriage return */
+export let CR: string
+```
+
 </details>
 
 <details>
 <summary>(click to expand)
 
-Type signatures of `BPETokenizerDB` in `bpe-tokenizer/db`:
+Type signatures of `BPETokenizerDB`, helper functions, and object types in `bpe-tokenizer/db`:
 
 </summary>
+
+The main class `BPETokenizerDB`:
 
 ```typescript
 import { BetterSqlite3Helper } from '@beenotung/better-sqlite3-helper'
 import { DBProxy, Token } from './proxy'
 import { BPETokenizerJSON } from '../core'
-
-export function connectDB(path: string): BetterSqlite3Helper.DBInstance
-
-export function resetBPETokenizerDB(db: BetterSqlite3Helper.DBInstance): void
 
 export class BPETokenizerDB {
   db: BetterSqlite3Helper.DBInstance
@@ -360,11 +393,23 @@ export class BPETokenizerDB {
    */
   encodeToCode(content: string): string
 }
+```
 
+Object Types:
+
+```typescript
 /**
  * @description a + b -> c, e.g. "app" + "le" -> "apple"
  */
 export type MergeToken = [a: Token, b: Token, c: Token]
+```
+
+Helper functions:
+
+```typescript
+export function connectDB(path: string): BetterSqlite3Helper.DBInstance
+
+export function resetBPETokenizerDB(db: BetterSqlite3Helper.DBInstance): void
 ```
 
 </details>
