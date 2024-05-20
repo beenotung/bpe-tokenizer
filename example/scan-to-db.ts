@@ -4,7 +4,7 @@ import { db } from './db'
 import { count_corpus, load_corpus_list } from './sample-corpus'
 
 async function main() {
-  // resetBPETokenizerDB(db)
+  resetBPETokenizerDB(db)
   let tokenizer = new BPETokenizerDB({ db })
 
   let last_post_id = tokenizer.getLastCorpusId() || 0
