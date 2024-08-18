@@ -4,3 +4,5 @@ tokenizer.json
 tokenizer_db.json
 merge.log
 *.zst
+wordnet.json
+webtext/
