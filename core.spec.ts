@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import {
   BPETokenizer,
+  BPETokenizer2,
   CompactMerge,
   EOF,
   MergeToken,
@@ -21,7 +22,7 @@ describe(`encode ${content_abc}`, () => {
     // merge "aa": "aa a b d aa a b a c"
     // merge "ab": "aa ab d aa ab a c"
     // merge "aaab": "aaab d aaab a c"
-    let tokenizer = new BPETokenizer()
+    let tokenizer = new BPETokenizer2()
     tokenizer.addToCorpus(content_abc)
     tokenizer.mergeUntil({ min_weight: 2 })
     expect(
@@ -81,7 +82,7 @@ describe(`encode ${content_abc}`, () => {
      * 4 -> 7: aaab x 2
      */
     let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(wrapContent( content_abc))
+    tokenizer.addToCorpus(wrapContent(content_abc))
     tokenizer.mergeUntil({ min_weight: 2 })
     tokenizer.compactVectorIndex()
     expect(tokenizer.encodeToVector(content_abc)).to.deep.equal([4, 2, 4, 1, 3])
