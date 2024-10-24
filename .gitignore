@@ -12,3 +12,6 @@ dist/
 *.d.ts
 bpe-tokenizer.json
 tokens.json
+corpus.txt
+isolate-0x*-v8.log
+processed.txt

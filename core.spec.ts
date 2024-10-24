@@ -18,10 +18,21 @@ function wrapContent(content: string) {
 let content_abc = 'aaabdaaabac'
 describe(`encode ${content_abc}`, () => {
   it(`should encode "${content_abc}" into segments "aaab d aaab a c"`, () => {
+    // 1: a
+    // 2: b
+    // 3: d
+    // 4: c
+    // 5: aa (1 + 1)
+    // 6: ab (1 + 2)
+    // 7: aaab (5 + 6)
     // initial: "a a a b d a a a b a c"
+    // initial: "1 1 1 2 3 1 1 1 2 1 4"
     // merge "aa": "aa a b d aa a b a c"
+    // merge "aa": "5 1 2 3 5 1 2 1 4"
     // merge "ab": "aa ab d aa ab a c"
+    // merge "ab": "5 6 3 5 6 1 4"
     // merge "aaab": "aaab d aaab a c"
+    // merge "aaab": "7 3 7 1 4"
     let tokenizer = new BPETokenizer2()
     tokenizer.addToCorpus(content_abc)
     tokenizer.mergeUntil({ min_weight: 2 })

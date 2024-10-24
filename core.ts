@@ -86,6 +86,11 @@ type MergeCandidate = {
   corpus_indices: Set<number>
 }
 
+function index_to_code(index: number) {
+  return String.fromCodePoint(index + 1) // for uniqueness
+  // return (index + 1).toString(36) // for readability
+}
+
 export class BPETokenizer2 {
   token_table: Token[] = []
 
@@ -97,9 +102,8 @@ export class BPETokenizer2 {
   corpus_in_code: string[] = []
 
   /** @description a_code + b_code -> MergeCandidate */
-  private merge_candidates: Record<string, MergeCandidate> = {}
-  /** @description merge candidate with most count */
-  private best_merge_candidate: MergeCandidate | null = null
+  private merge_candidate_dict: Record<string, MergeCandidate> = {}
+  private merge_candidate_array: MergeCandidate[] = []
 
   /**
    * @description add new content to corpus.
@@ -107,7 +111,6 @@ export class BPETokenizer2 {
    */
   addToCorpus(content: string) {
     let { token_table, char_to_token, code_to_token, corpus_in_code } = this
-    let best_candidate_count = this.best_merge_candidate?.count || 0
     let sample_in_code = ''
     let last_token: Token | null = null
     let corpus_index = corpus_in_code.length
@@ -115,7 +118,7 @@ export class BPETokenizer2 {
       let token = char_to_token[char]
       if (!token) {
         let index = token_table.length
-        let code = String.fromCodePoint(index + 1)
+        let code = index_to_code(index)
         token = {
           chars: char,
           weight: 1,
@@ -132,11 +135,7 @@ export class BPETokenizer2 {
       }
       sample_in_code += token.code
       if (last_token) {
-        let candidate = this.incMergeCandidate(last_token, token, corpus_index)
-        if (candidate.count > best_candidate_count) {
-          best_candidate_count = candidate.count
-          this.best_merge_candidate = candidate
-        }
+        this.incMergeCandidate(last_token, token, corpus_index)
       }
       last_token = token
     }
@@ -166,21 +165,6 @@ export class BPETokenizer2 {
     }
   }
 
-  private getBestMergeCandidate(): MergeCandidate | null {
-    let { best_merge_candidate, merge_candidates } = this
-    if (best_merge_candidate) return best_merge_candidate
-
-    let best_candidate_count = 0
-    for (let candidate of Object.values(merge_candidates)) {
-      if (candidate.count > best_candidate_count) {
-        best_candidate_count = candidate.count
-        best_merge_candidate = candidate
-      }
-    }
-
-    return best_merge_candidate
-  }
-
   /**
    * @description called by `mergeUntil()`.
    * Can be used to implement custom iteration conditions.
@@ -191,26 +175,33 @@ export class BPETokenizer2 {
     /** @default unlimited */
     max_length?: number
   }): MergeCandidate | null {
-    let best_candidate = this.getBestMergeCandidate()
-    if (!best_candidate) return null
-
     let min_weight = options?.min_weight || 2
     let max_length = options?.max_length
 
-    if (best_candidate.count < min_weight) return null
+    let max_count = 0
+    let best_merge_candidate: MergeCandidate | null = null
 
-    if (
-      max_length &&
-      best_candidate.a.chars.length + best_candidate.b.chars.length > max_length
-    )
-      return null
+    for (let candidate of this.merge_candidate_array) {
+      if (
+        max_length &&
+        candidate.a.chars.length + candidate.b.chars.length > max_length
+      )
+        continue
 
-    return best_candidate
+      if (candidate.count < max_count) continue
+
+      best_merge_candidate = candidate
+      max_count = candidate.count
+    }
+
+    if (max_count < min_weight) return null
+
+    return best_merge_candidate
   }
 
   private incMergeCandidate(a: Token, b: Token, corpus_index: number) {
     let code = a.code + b.code
-    let candidate = this.merge_candidates[code]
+    let candidate = this.merge_candidate_dict[code]
     if (candidate) {
       candidate.count++
       candidate.corpus_indices.add(corpus_index)
@@ -221,14 +212,15 @@ export class BPETokenizer2 {
         count: 1,
         corpus_indices: new Set([corpus_index]),
       }
-      this.merge_candidates[code] = candidate
+      this.merge_candidate_dict[code] = candidate
+      this.merge_candidate_array.push(candidate)
     }
     return candidate
   }
 
   private decMergeCandidate(a: Token, b: Token) {
     let code = a.code + b.code
-    let candidate = this.merge_candidates[code]
+    let candidate = this.merge_candidate_dict[code]
     if (candidate) {
       candidate.count--
     }
@@ -247,7 +239,7 @@ export class BPETokenizer2 {
       chars: a.chars + b.chars,
       weight: count,
       original_weight: count,
-      code: String.fromCodePoint(c_index + 1),
+      code: index_to_code(c_index),
       index: c_index,
     }
     this.char_to_token[c.chars] = c
@@ -259,12 +251,12 @@ export class BPETokenizer2 {
 
       for (let offset = 0; offset < sample_in_code.length; ) {
         let a_index = sample_in_code.indexOf(a.code, offset)
-        if (
-          a_index == -1 ||
-          a_index + 1 >= sample_in_code.length ||
-          sample_in_code[a_index + 1] != b.code
-        )
-          break
+        if (a_index == -1 || a_index + 1 >= sample_in_code.length) break
+
+        if (sample_in_code[a_index + 1] != b.code) {
+          offset = a_index + 1
+          continue
+        }
 
         count++
         a.weight--
@@ -293,8 +285,11 @@ export class BPETokenizer2 {
     }
     c.weight = count
     c.original_weight = count
-    delete this.merge_candidates[a.code + b.code]
-    this.best_merge_candidate = null
+    delete this.merge_candidate_dict[a.code + b.code]
+    let index = this.merge_candidate_array.indexOf(candidate)
+    if (index != -1) {
+      this.merge_candidate_array.splice(index, 1)
+    }
   }
 
   encodeToCode(content: string): string {
