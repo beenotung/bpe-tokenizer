@@ -2,11 +2,13 @@ import { expect } from 'chai'
 import {
   BPETokenizer,
   BPETokenizer2,
+  BPETokenizerSnapshot,
   CompactMerge,
   EOF,
   MergeToken,
   Token,
   compactMerge,
+  compactMergeCandidate,
 } from './core'
 import { readFileSync } from 'fs'
 
@@ -154,6 +156,8 @@ describe(`encode ${content_x}`, () => {
 describe('JSON export / import', () => {
   let json = ''
   let token_table: BPETokenizer2['token_table']
+  let merge_tokens: BPETokenizer2['merge_tokens']
+  let merge_codes: BPETokenizer2['merge_codes']
 
   it('should export to json', () => {
     let tokenizer = new BPETokenizer2()
@@ -165,48 +169,69 @@ describe('JSON export / import', () => {
     expect(json.length).greaterThan(0)
 
     token_table = tokenizer.token_table
-    expect(token_table).not.undefined
+    merge_tokens = tokenizer.merge_tokens
+    merge_codes = tokenizer.merge_codes
+
     expect(token_table.length).greaterThan(1)
+    expect(merge_tokens.length).greaterThan(1)
+    expect(merge_codes.length).greaterThan(1)
   })
 
   it('should import from json', () => {
     let tokenizer = new BPETokenizer2()
     tokenizer.fromJSON(JSON.parse(json))
     expect(tokenizer.token_table).deep.equals(token_table)
+    expect(tokenizer.merge_tokens).deep.equals(merge_tokens)
+    expect(tokenizer.merge_codes).deep.equals(merge_codes)
   })
 })
 
 describe('resume merges after restart', () => {
-  let merges: CompactMerge[] = []
-  let vector: number[] = []
-  let tokens: Token[] = []
+  let snapshot: BPETokenizerSnapshot
 
+  // merge "aa" and "ab"
   it('should store merge log', () => {
-    let tokenizer = new BPETokenizer()
+    let tokenizer = new BPETokenizer2()
     tokenizer.addToCorpus(wrapContent(content_abc))
-    for (;;) {
-      let merge = tokenizer.findNextMerge()
-      if (!merge) break
-      let [_a, _b, c] = merge
-      if (c.weight < 2) break
-      merges.push(compactMerge(merge))
-      tokenizer.applyMerge(merge)
-    }
-    tokens = tokenizer.token_table
-    vector = tokenizer.encodeToVector(content_abc)
-    expect(merges.length).greaterThan(0)
-    expect(vector.length).greaterThan(0)
+    tokenizer.mergeUntil({ max_iterations: 2 })
+
+    expect(tokenizer.merge_tokens).lengthOf(2)
+    expect(tokenizer.merge_codes).lengthOf(2)
+
+    expect(
+      tokenizer.merge_tokens.map(merge => merge.map(token => token.chars)),
+    ).deep.equals([
+      ['a', 'a', 'aa'],
+      ['a', 'b', 'ab'],
+    ])
+
+    snapshot = tokenizer.toSnapshot()
   })
 
+  // continue to merge "aaab"
   it('should resume from merge log', () => {
-    let tokenizer = new BPETokenizer()
-    tokenizer.addToCorpus(wrapContent(content_abc))
-    for (let merge of merges) {
-      tokenizer.restoreMerge(merge)
-    }
-    expect(tokenizer.token_table).to.deep.equals(tokens)
-    expect(tokenizer.encodeToVector(content_abc)).to.deep.equals(vector)
-    expect(tokenizer.decodeVector(vector)).to.equals(content_abc)
+    let tokenizer = new BPETokenizer2()
+    tokenizer.fromSnapshot(snapshot)
+
+    expect(
+      tokenizer.merge_tokens.map(merge => merge.map(token => token.chars)),
+    ).deep.equals([
+      ['a', 'a', 'aa'],
+      ['a', 'b', 'ab'],
+    ])
+
+    tokenizer.mergeUntil({ max_iterations: 1 })
+
+    expect(tokenizer.merge_tokens).lengthOf(3)
+    expect(tokenizer.merge_codes).lengthOf(3)
+
+    expect(
+      tokenizer.merge_tokens.map(merge => merge.map(token => token.chars)),
+    ).deep.equals([
+      ['a', 'a', 'aa'],
+      ['a', 'b', 'ab'],
+      ['aa', 'ab', 'aaab'],
+    ])
   })
 })
 

@@ -32,6 +32,17 @@ export type BPETokenizerJSON = {
   merge_codes: [a_code: string, b_code: string, c_code: string][]
 }
 
+/** @description for BPETokenizer.toSnapshot() */
+export type BPETokenizerSnapshot = BPETokenizerJSON & {
+  corpus_in_code: string[]
+  merge_candidates: [
+    a_code: string,
+    b_code: string,
+    c_weight: number,
+    corpus_indices: number[],
+  ][]
+}
+
 /** @description file separator */
 export let FS = String.fromCharCode(28)
 
@@ -77,7 +88,7 @@ export function linesTrimmedToCorpus(text: string): string[] {
 type MergeCandidate = {
   a: Token
   b: Token
-  count: number
+  weight: number
   /**
    * @description
    * may no longer include the candidate merge token,
@@ -118,6 +129,7 @@ export class BPETokenizer2 {
   /**
    * @description export token tables and merge list.
    * The json can be used to restore after restart, or to populate database with BPETokenizerDB.
+   * @description this mode does not support continuous merging.
    */
   toJSON(): BPETokenizerJSON {
     return {
@@ -136,7 +148,10 @@ export class BPETokenizer2 {
     }
   }
 
-  /** @description restore from json (after restart) */
+  /**
+   * @description restore from json (after restart)
+   * @description this mode does not support continuous merging.
+   */
   fromJSON(json: BPETokenizerJSON) {
     if (
       json.version !== 2 ||
@@ -183,7 +198,52 @@ export class BPETokenizer2 {
       merge_tokens.push([a, b, c])
       merge_codes.push([a.code + b.code, c.code])
     }
-    this.compactVectorIndex()
+  }
+
+  /** @description this mode supports continuous merging */
+  toSnapshot(): BPETokenizerSnapshot {
+    return {
+      ...this.toJSON(),
+      corpus_in_code: this.corpus_in_code,
+      merge_candidates: this.merge_candidate_array.map(candidate => [
+        candidate.a.code,
+        candidate.b.code,
+        candidate.weight,
+        Array.from(candidate.corpus_indices),
+      ]),
+    }
+  }
+
+  /**
+   * @description restore from json (after restart)
+   * @description this mode supports continuous merging.
+   */
+  fromSnapshot(snapshot: BPETokenizerSnapshot) {
+    this.fromJSON(snapshot)
+    let { code_to_token, merge_candidate_array, merge_candidate_dict } = this
+    this.corpus_in_code = snapshot.corpus_in_code
+    for (let [
+      a_code,
+      b_code,
+      weight,
+      corpus_indices,
+    ] of snapshot.merge_candidates) {
+      let a = code_to_token[a_code]
+      if (!a) throw new Error(`unknown a token code: ${JSON.stringify(a_code)}`)
+
+      let b = code_to_token[b_code]
+      if (!b) throw new Error(`unknown b token code: ${JSON.stringify(b_code)}`)
+
+      let candidate: MergeCandidate = {
+        a,
+        b,
+        weight,
+        corpus_indices: new Set(corpus_indices),
+      }
+
+      merge_candidate_array.push(candidate)
+      merge_candidate_dict[a_code + b_code] = candidate
+    }
   }
 
   /**
@@ -272,10 +332,10 @@ export class BPETokenizer2 {
       )
         continue
 
-      if (candidate.count < max_count) continue
-
-      best_merge_candidate = candidate
-      max_count = candidate.count
+      if (candidate.weight > max_count) {
+        best_merge_candidate = candidate
+        max_count = candidate.weight
+      }
     }
 
     if (max_count < min_weight) return null
@@ -287,13 +347,13 @@ export class BPETokenizer2 {
     let code = a.code + b.code
     let candidate = this.merge_candidate_dict[code]
     if (candidate) {
-      candidate.count++
+      candidate.weight++
       candidate.corpus_indices.add(corpus_index)
     } else {
       candidate = {
         a,
         b,
-        count: 1,
+        weight: 1,
         corpus_indices: new Set([corpus_index]),
       }
       this.merge_candidate_dict[code] = candidate
@@ -306,7 +366,7 @@ export class BPETokenizer2 {
     let code = a.code + b.code
     let candidate = this.merge_candidate_dict[code]
     if (candidate) {
-      candidate.count--
+      candidate.weight--
     }
   }
 
@@ -315,7 +375,7 @@ export class BPETokenizer2 {
    * Can be used to implement custom iteration conditions.
    */
   applyMergeCandidate(candidate: MergeCandidate) {
-    let { code_to_token } = this
+    let { code_to_token, from_vector_index, to_vector_index } = this
     let { a, b } = candidate
     let c_index = this.token_table.length
     let count = 0
@@ -329,6 +389,7 @@ export class BPETokenizer2 {
     this.char_to_token[c.chars] = c
     code_to_token[c.code] = c
     this.token_table.push(c)
+    this.merge_tokens.push([a, b, c])
     this.merge_codes.push([a.code + b.code, c.code])
     for (let corpus_index of candidate.corpus_indices) {
       let sample_in_code = this.corpus_in_code[corpus_index]
@@ -376,8 +437,36 @@ export class BPETokenizer2 {
       this.merge_candidate_array.splice(index, 1)
     }
 
-    if (this.to_vector_index.length > 0) this.to_vector_index.length = 0
-    if (this.from_vector_index.length > 0) this.from_vector_index.length = 0
+    if (to_vector_index.length > 0) to_vector_index.length = 0
+    if (from_vector_index.length > 0) from_vector_index.length = 0
+  }
+
+  /**
+   * @description restore merge produced from `compactMerge(this.findNextMerge())`.
+   * To be used after restart for continuous merging.
+   */
+  restoreMerge(compactMerge: CompactMerge) {
+    let [a_code, b_code, c_weight] = compactMerge
+
+    let a = this.code_to_token[a_code]
+    if (!a) throw new Error(`unknown token code: ${JSON.stringify(a_code)}`)
+
+    let b = this.code_to_token[b_code]
+    if (!b) throw new Error(`unknown token code: ${JSON.stringify(b_code)}`)
+
+    let index = this.token_table.length
+    let c: Token = {
+      chars: a.chars + b.chars,
+      weight: c_weight,
+      original_weight: c_weight,
+      code: index_to_code(index),
+      index,
+    }
+    this.char_to_token[c.chars] = c
+    this.code_to_token[c.code] = c
+    this.token_table.push(c)
+    this.merge_tokens.push([a, b, c])
+    this.merge_codes.push([a.code + b.code, c.code])
   }
 
   /**
@@ -436,6 +525,33 @@ export class BPETokenizer2 {
     }
 
     return vector
+  }
+
+  decodeTokens(tokens: Token[]): string {
+    let content = ''
+    for (let token of tokens) {
+      content += token.chars
+    }
+    return content
+  }
+
+  decodeVector(vector: number[]): string {
+    let { from_vector_index } = this
+
+    if (from_vector_index.length == 0) {
+      this.compactVectorIndex()
+    }
+
+    let content = ''
+    for (let vector_index of vector) {
+      if (vector_index in from_vector_index) {
+        let index = from_vector_index[vector_index]
+        content += this.token_table[index].chars
+      } else {
+        throw new Error(`unknown vector index: ${vector_index}`)
+      }
+    }
+    return content
   }
 
   /**
@@ -890,4 +1006,12 @@ export class BPETokenizer {
 export function compactMerge(merge: MergeToken): CompactMerge {
   let [a, b, c] = merge
   return [a.code, b.code, c.weight]
+}
+
+/**
+ * @description to store MergeCandidate in compact format
+ */
+export function compactMergeCandidate(merge: MergeCandidate): CompactMerge {
+  let { a, b, weight: count } = merge
+  return [a.code, b.code, count]
 }
