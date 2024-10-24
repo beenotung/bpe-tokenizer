@@ -292,6 +292,13 @@ export class BPETokenizer2 {
     }
   }
 
+  /**
+   * @description encode to binary string.
+   * Used by:
+   *   - `restoreToCorpus()`
+   *   - `encodeToTokens()`
+   *   - `encodeToVector()`
+   */
   encodeToCode(content: string): string {
     let { char_to_token } = this
 
