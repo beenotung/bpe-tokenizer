@@ -85,7 +85,7 @@ export function linesTrimmedToCorpus(text: string): string[] {
   })
 }
 
-type MergeCandidate = {
+export type MergeCandidate = {
   a: Token
   b: Token
   weight: number
