@@ -92,7 +92,7 @@ describe(`encode ${content_abc}`, () => {
      *      6: ab x 0
      * 4 -> 7: aaab x 2
      */
-    let tokenizer = new BPETokenizer()
+    let tokenizer = new BPETokenizer2()
     tokenizer.addToCorpus(wrapContent(content_abc))
     tokenizer.mergeUntil({ min_weight: 2 })
     tokenizer.compactVectorIndex()
@@ -106,7 +106,7 @@ describe(`encode ${content_x}`, () => {
     //           initial: "_ x x x x x x x x x _"
     //       merge x + x: "_ xx xx xx xx x _"
     //     merge xx + xx: "xxxx xxxx x"
-    let tokenizer = new BPETokenizer()
+    let tokenizer = new BPETokenizer2()
     tokenizer.addToCorpus(wrapContent(content_x))
     tokenizer.mergeUntil({ min_weight: 2 })
     expect(
@@ -143,7 +143,7 @@ describe(`encode ${content_x}`, () => {
      *      2: XX x 0
      * 2 -> 3: XXXX x 2
      */
-    let tokenizer = new BPETokenizer()
+    let tokenizer = new BPETokenizer2()
     tokenizer.addToCorpus(wrapContent(content_x))
     tokenizer.mergeUntil({ min_weight: 2 })
     tokenizer.compactVectorIndex()

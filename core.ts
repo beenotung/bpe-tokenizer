@@ -99,11 +99,14 @@ export class BPETokenizer2 {
 
   merge_codes: MergeCode[] = []
 
-  corpus_in_code: string[] = []
+  private corpus_in_code: string[] = []
 
   /** @description a_code + b_code -> MergeCandidate */
   private merge_candidate_dict: Record<string, MergeCandidate> = {}
   private merge_candidate_array: MergeCandidate[] = []
+
+  private to_vector_index: number[] = []
+  private from_vector_index: number[] = []
 
   /**
    * @description add new content to corpus.
@@ -285,11 +288,15 @@ export class BPETokenizer2 {
     }
     c.weight = count
     c.original_weight = count
+
     delete this.merge_candidate_dict[a.code + b.code]
     let index = this.merge_candidate_array.indexOf(candidate)
     if (index != -1) {
       this.merge_candidate_array.splice(index, 1)
     }
+
+    if (this.to_vector_index.length > 0) this.to_vector_index.length = 0
+    if (this.from_vector_index.length > 0) this.from_vector_index.length = 0
   }
 
   /**
@@ -326,6 +333,53 @@ export class BPETokenizer2 {
     }
 
     return tokens
+  }
+
+  encodeToVector(content: string): number[] {
+    let { code_to_token, to_vector_index } = this
+
+    if (to_vector_index.length == 0) {
+      this.compactVectorIndex()
+    }
+
+    let content_in_code = this.encodeToCode(content)
+
+    let vector: number[] = []
+    for (let code of content_in_code) {
+      let index = code_to_token[code].index
+      if (index in to_vector_index) {
+        vector.push(to_vector_index[index])
+      } else {
+        throw new Error(`unknown token index: ${index}`)
+      }
+    }
+
+    return vector
+  }
+
+  /**
+   * @description skip zero-weight tokens to reduce range of vector index.
+   * Auto called by `encodeToVector()` and `decodeVector()`
+   */
+  compactVectorIndex() {
+    let { token_table, to_vector_index, from_vector_index } = this
+    let token_count = token_table.length
+    if (token_count == 0) {
+      throw new Error(
+        `token table is empty, have you called tokenizer.addToCorpus() or restoring from json?`,
+      )
+    }
+    to_vector_index.length = 0
+    from_vector_index.length = 0
+    let vector_index = 0
+    for (let index = 0; index < token_count; index++) {
+      let token = token_table[index]
+      if (token.weight > 0) {
+        to_vector_index[index] = vector_index
+        from_vector_index[vector_index] = index
+        vector_index++
+      }
+    }
   }
 }
 
