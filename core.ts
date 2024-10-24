@@ -178,13 +178,16 @@ export class BPETokenizer2 {
     /** @default unlimited */
     max_length?: number
   }): MergeCandidate | null {
+    let { merge_candidate_array } = this
+    let candidate_count = merge_candidate_array.length
     let min_weight = options?.min_weight || 2
     let max_length = options?.max_length
 
     let max_count = 0
     let best_merge_candidate: MergeCandidate | null = null
 
-    for (let candidate of this.merge_candidate_array) {
+    for (let index = 0; index < candidate_count; index++) {
+      let candidate = merge_candidate_array[index]
       if (
         max_length &&
         candidate.a.chars.length + candidate.b.chars.length > max_length
