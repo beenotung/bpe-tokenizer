@@ -261,6 +261,30 @@ describe('encodeToVector', () => {
   })
 })
 
+function expectMerge(
+  tokenizer: BPETokenizer2,
+  merge: MergeCandidate | null,
+  a: string,
+  b: string,
+  weight: number,
+) {
+  expect(merge).not.null
+
+  expect(merge!.a.chars).to.equals(a)
+  expect(merge!.b.chars).to.equals(b)
+  expect(merge!.weight).to.equals(weight)
+
+  tokenizer.applyMergeCandidate(merge!)
+
+  let c = tokenizer.token_table[tokenizer.token_table.length - 1]
+  expect(c).not.undefined
+
+  expect(c.chars).to.equals(a + b)
+  expect(c.weight).to.equals(weight)
+
+  return c
+}
+
 describe('find next merge within length limit', () => {
   let content = 'x'.repeat(10)
 
@@ -274,39 +298,17 @@ describe('find next merge within length limit', () => {
     tokenizer.addToCorpus(wrapContent(content))
   })
 
-  function expectMerge(
-    merge: MergeCandidate | null,
-    a: string,
-    b: string,
-    weight: number,
-  ) {
-    expect(merge).not.null
-
-    expect(merge!.a.chars).to.equals(a)
-    expect(merge!.b.chars).to.equals(b)
-
-    tokenizer.applyMergeCandidate(merge!)
-
-    let c = tokenizer.token_table[tokenizer.token_table.length - 1]
-    expect(c).not.undefined
-
-    expect(c.chars).to.equals(a + b)
-    expect(c.weight).to.equals(weight)
-
-    return c
-  }
-
   it('should find merge within length limit', () => {
     let merge = tokenizer.findNextMergeCandidate()
-    expectMerge(merge, 'x', 'x', 5)
+    expectMerge(tokenizer, merge, 'x', 'x', 5)
 
     merge = tokenizer.findNextMergeCandidate({ max_length: 4 })
-    expectMerge(merge, 'xx', 'xx', 2)
+    expectMerge(tokenizer, merge, 'xx', 'xx', 2)
   })
 
   it('should not find merge exceed length limit', () => {
     let merge = tokenizer.findNextMergeCandidate()
-    expectMerge(merge, 'x', 'x', 5)
+    expectMerge(tokenizer, merge, 'x', 'x', 5)
 
     merge = tokenizer.findNextMergeCandidate({ max_length: 3 })
     expect(merge).null
@@ -320,44 +322,33 @@ describe('find next merge within weight limit', () => {
   // step 1: _ 2x 2x 2x 2x 2x _
   // step 2: _ 4x 4x 2x _
 
-  let tokenizer: BPETokenizer
+  let tokenizer: BPETokenizer2
   beforeEach(() => {
-    tokenizer = new BPETokenizer()
+    tokenizer = new BPETokenizer2()
     tokenizer.addToCorpus(wrapContent(content))
   })
 
   it('should find merge above weight limit', () => {
-    let merge = tokenizer.findNextMerge({ min_weight: 5 })
-    expect(merge).not.null
-    expect(merge![0].chars).equals('x')
-    expect(merge![1].chars).equals('x')
-    expect(merge![2].chars).equals('xx')
+    let merge = tokenizer.findNextMergeCandidate({ min_weight: 5 })
+    expectMerge(tokenizer, merge, 'x', 'x', 5)
   })
 
   it('should not find merge below weight limit', () => {
-    let merge = tokenizer.findNextMerge({ min_weight: 6 })
+    let merge = tokenizer.findNextMergeCandidate({ min_weight: 6 })
     expect(merge).null
   })
 
   it('should find all merges if weight limit is not specified', () => {
     // _ x x x x x x x x x x _
-    let merge = tokenizer.findNextMerge()
-    expect(merge).not.null
-    expect(merge![0].chars).equals('x')
-    expect(merge![1].chars).equals('x')
-    expect(merge![2].chars).equals('xx')
-    tokenizer.applyMerge(merge!)
+    let merge = tokenizer.findNextMergeCandidate()
+    expectMerge(tokenizer, merge, 'x', 'x', 5)
 
     // _ xx xx xx xx xx _
-    merge = tokenizer.findNextMerge()
-    expect(merge).not.null
-    expect(merge![0].chars).equals('xx')
-    expect(merge![1].chars).equals('xx')
-    expect(merge![2].chars).equals('xxxx')
-    tokenizer.applyMerge(merge!)
+    merge = tokenizer.findNextMergeCandidate()
+    expectMerge(tokenizer, merge, 'xx', 'xx', 2)
 
     // _ xxxx xxxx xx _
-    merge = tokenizer.findNextMerge()
+    merge = tokenizer.findNextMergeCandidate()
     expect(merge).null
   })
 })

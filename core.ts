@@ -102,6 +102,16 @@ function index_to_code(index: number) {
   // return (index + 1).toString(36) // for readability
 }
 
+function count_prefix(sample_in_code: string, token: Token, offset: number) {
+  let count = 0
+  for (let i = offset - 2; i >= 0; i--) {
+    let code = sample_in_code[i]
+    if (code != token.code) break
+    count++
+  }
+  return count
+}
+
 export class BPETokenizer2 {
   token_table: Token[] = []
 
@@ -255,6 +265,7 @@ export class BPETokenizer2 {
     let sample_in_code = ''
     let last_token: Token | null = null
     let corpus_index = corpus_in_code.length
+    let was_twin = false
     for (let char of content) {
       let token = char_to_token[char]
       if (!token) {
@@ -276,7 +287,14 @@ export class BPETokenizer2 {
       }
       sample_in_code += token.code
       if (last_token) {
+        if (was_twin) {
+          was_twin = false
+          if (last_token == token) {
+            continue
+          }
+        }
         this.incMergeCandidate(last_token, token, corpus_index)
+        was_twin = last_token == token
       }
       last_token = token
     }
@@ -365,8 +383,15 @@ export class BPETokenizer2 {
   private decMergeCandidate(a: Token, b: Token) {
     let code = a.code + b.code
     let candidate = this.merge_candidate_dict[code]
-    if (candidate) {
-      candidate.weight--
+    if (!candidate) return
+
+    candidate.weight--
+    if (candidate.weight > 0) return
+
+    delete this.merge_candidate_dict[code]
+    let index = this.merge_candidate_array.indexOf(candidate)
+    if (index != -1) {
+      this.merge_candidate_array.splice(index, 1)
     }
   }
 
@@ -376,13 +401,12 @@ export class BPETokenizer2 {
    */
   applyMergeCandidate(candidate: MergeCandidate) {
     let { code_to_token, from_vector_index, to_vector_index } = this
-    let { a, b } = candidate
+    let { a, b, weight } = candidate
     let c_index = this.token_table.length
-    let count = 0
     let c: Token = {
       chars: a.chars + b.chars,
-      weight: count,
-      original_weight: count,
+      weight,
+      original_weight: weight,
       code: index_to_code(c_index),
       index: c_index,
     }
@@ -403,7 +427,6 @@ export class BPETokenizer2 {
           continue
         }
 
-        count++
         a.weight--
         b.weight--
 
@@ -411,7 +434,9 @@ export class BPETokenizer2 {
           let pre_a_code = sample_in_code[a_index - 1]
           let pre_a = code_to_token[pre_a_code]
           this.decMergeCandidate(pre_a, a)
-          this.incMergeCandidate(pre_a, c, corpus_index)
+          if (pre_a != c || count_prefix(sample_in_code, c, a_index) % 2 == 0) {
+            this.incMergeCandidate(pre_a, c, corpus_index)
+          }
         }
 
         if (a_index + 2 < sample_in_code.length) {
@@ -428,8 +453,6 @@ export class BPETokenizer2 {
 
       this.corpus_in_code[corpus_index] = sample_in_code
     }
-    c.weight = count
-    c.original_weight = count
 
     delete this.merge_candidate_dict[a.code + b.code]
     let index = this.merge_candidate_array.indexOf(candidate)
