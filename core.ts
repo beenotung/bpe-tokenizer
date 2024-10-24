@@ -94,9 +94,16 @@ function index_to_code(index: number) {
 export class BPETokenizer2 {
   token_table: Token[] = []
 
+  /** @description index of token_table */
   char_to_token: Record<string, Token> = {}
+
+  /** @description index of token_table */
   code_to_token: Record<string, Token> = {}
 
+  /** @description for export */
+  merge_tokens: MergeToken[] = []
+
+  /** @description for encode */
   merge_codes: MergeCode[] = []
 
   private corpus_in_code: string[] = []
@@ -107,6 +114,77 @@ export class BPETokenizer2 {
 
   private to_vector_index: number[] = []
   private from_vector_index: number[] = []
+
+  /**
+   * @description export token tables and merge list.
+   * The json can be used to restore after restart, or to populate database with BPETokenizerDB.
+   */
+  toJSON(): BPETokenizerJSON {
+    return {
+      version: 2,
+      char_count: Object.keys(this.char_to_token).length,
+      token_table: this.token_table.map(token => [
+        token.chars,
+        token.weight,
+        token.original_weight,
+      ]),
+      merge_codes: this.merge_tokens.map(([a, b, c]) => [
+        a.code,
+        b.code,
+        c.code,
+      ]),
+    }
+  }
+
+  /** @description restore from json (after restart) */
+  fromJSON(json: BPETokenizerJSON) {
+    if (
+      json.version !== 2 ||
+      !Array.isArray(json.token_table) ||
+      !Array.isArray(json.merge_codes)
+    )
+      throw new Error('invalid format')
+    let { char_count } = json
+    let newInstance = new BPETokenizer2()
+    let {
+      char_to_token,
+      code_to_token,
+      token_table,
+      merge_tokens,
+      merge_codes,
+    } = newInstance
+    Object.assign(this, newInstance)
+    for (let [chars, weight, original_weight] of json.token_table) {
+      let index = token_table.length
+      let code = index_to_code(index)
+      let token: Token = {
+        chars,
+        weight,
+        original_weight,
+        code,
+        index,
+      }
+      if (index < char_count) {
+        char_to_token[chars] = token
+      }
+      code_to_token[code] = token
+      token_table[index] = token
+    }
+    for (let [a_code, b_code, c_code] of json.merge_codes) {
+      let a: Token = code_to_token[a_code]
+      if (!a) throw new Error(`unknown token code: ${JSON.stringify(a_code)}`)
+
+      let b: Token = code_to_token[b_code]
+      if (!b) throw new Error(`unknown token code: ${JSON.stringify(b_code)}`)
+
+      let c: Token = code_to_token[c_code]
+      if (!c) throw new Error(`unknown token code: ${JSON.stringify(c_code)}`)
+
+      merge_tokens.push([a, b, c])
+      merge_codes.push([a.code + b.code, c.code])
+    }
+    this.compactVectorIndex()
+  }
 
   /**
    * @description add new content to corpus.

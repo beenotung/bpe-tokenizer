@@ -153,10 +153,10 @@ describe(`encode ${content_x}`, () => {
 
 describe('JSON export / import', () => {
   let json = ''
-  let token_table: BPETokenizer['token_table']
+  let token_table: BPETokenizer2['token_table']
 
   it('should export to json', () => {
-    let tokenizer = new BPETokenizer()
+    let tokenizer = new BPETokenizer2()
     tokenizer.addToCorpus(wrapContent(readFileSync(__filename).toString()))
     tokenizer.mergeUntil({ min_weight: 2 })
 
@@ -170,7 +170,7 @@ describe('JSON export / import', () => {
   })
 
   it('should import from json', () => {
-    let tokenizer = new BPETokenizer()
+    let tokenizer = new BPETokenizer2()
     tokenizer.fromJSON(JSON.parse(json))
     expect(tokenizer.token_table).deep.equals(token_table)
   })
