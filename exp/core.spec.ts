@@ -108,4 +108,29 @@ describe('BPETokenizer', () => {
       expect(bpeTokenizer.toJSON()).to.deep.equal(json)
     })
   })
+
+  describe('find next merge', () => {
+    it('should find pair with max occurrence', () => {
+      let tokenizer = new BPETokenizer()
+      tokenizer.addToCorpus('abcdab')
+      expect(tokenizer.token_table.length).to.equal(4)
+
+      let merge = tokenizer.findNextMerge()!
+      expect(merge).not.null
+
+      let [a, b, c] = merge
+      expect(a.chars).to.equal('a')
+      expect(b.chars).to.equal('b')
+      expect(c.chars).to.equal('ab')
+
+      let token: Token = {
+        chars: 'ab',
+        weight: 2,
+        original_weight: 1,
+        index: 4,
+        code: String.fromCodePoint(4 + 1),
+      }
+      expect(c).to.deep.equal(token)
+    })
+  })
 })

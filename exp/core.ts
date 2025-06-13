@@ -72,6 +72,64 @@ export class BPETokenizer {
     this.corpus_in_code.push(sample_in_code)
   }
 
+  findNextMerge(options?: {
+    /** max number of chars of the merged token */
+    max_length?: number
+  }) {
+    let max_length = options?.max_length || Number.MAX_SAFE_INTEGER
+    let { code_to_token } = this
+    let index = this.token_table.length
+    let new_code = String.fromCodePoint(index + 1)
+
+    // count the number of occurrences of each pair of tokens
+    let a_b_c = new Map<Token, Map<Token, Token>>()
+    let max_a: Token | undefined
+    let max_b: Token | undefined
+    let max_c: Token | undefined
+    for (let sample_in_code of this.corpus_in_code) {
+      let a: Token | undefined // first token in pair
+      let b: Token | undefined // second token in pair
+      let c: Token | undefined // a + b -> c
+      for (let code of sample_in_code) {
+        let token = code_to_token[code]
+        if (!token) {
+          let index = code.codePointAt(0)! - 1
+          throw new Error(`token not found, index: ${index}`)
+        }
+        b = token
+        if (a && a.chars.length + b.chars.length <= max_length) {
+          let b_c = a_b_c.get(a)
+          if (!b_c) {
+            b_c = new Map()
+            a_b_c.set(a, b_c)
+          }
+          c = b_c.get(b)
+          if (c) {
+            c.weight++
+          } else {
+            c = {
+              chars: a.chars + b.chars,
+              weight: 1,
+              original_weight: 1,
+              code: new_code,
+              index,
+            }
+            b_c.set(b, c)
+          }
+
+          if (!max_c || max_c.weight < c.weight) {
+            max_a = a
+            max_b = b
+            max_c = c
+          }
+        }
+        a = b
+      }
+    }
+
+    return max_c ? ([max_a!, max_b!, max_c!] as const) : null
+  }
+
   toJSON(): BPETokenizerJSON {
     let { token_table } = this
     let json: BPETokenizerJSON = {
