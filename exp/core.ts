@@ -11,6 +11,14 @@ export type Token = {
   index: number
 }
 
+/** store token_table in parallel arrays for better space efficiency */
+export type BPETokenizerJSON = {
+  version: 'exp'
+  chars: string[]
+  weights: number[]
+  original_weights: number[]
+}
+
 export class BPETokenizer {
   /** store all tokens */
   token_table: Token[] = []
@@ -62,5 +70,42 @@ export class BPETokenizer {
       sample_in_code += token.code
     }
     this.corpus_in_code.push(sample_in_code)
+  }
+
+  toJSON(): BPETokenizerJSON {
+    let { token_table } = this
+    let json: BPETokenizerJSON = {
+      version: 'exp',
+      chars: [],
+      weights: [],
+      original_weights: [],
+    }
+    for (let token of token_table) {
+      json.chars.push(token.chars)
+      json.weights.push(token.weight)
+      json.original_weights.push(token.original_weight)
+    }
+    return json
+  }
+
+  fromJSON(json: BPETokenizerJSON) {
+    let { token_table, char_to_token, code_to_token } = this
+    let { chars, weights, original_weights } = json
+    token_table.length = 0
+    let n = json.chars.length
+    for (let i = 0; i < n; i++) {
+      let char = chars[i]
+      let code = String.fromCodePoint(i + 1)
+      let token: Token = {
+        chars: char,
+        weight: weights[i],
+        original_weight: original_weights[i],
+        code,
+        index: i,
+      }
+      token_table[i] = token
+      char_to_token[char] = token
+      code_to_token[code] = token
+    }
   }
 }

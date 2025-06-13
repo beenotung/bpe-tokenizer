@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { BPETokenizer, Token } from './core'
+import { BPETokenizer, Token, BPETokenizerJSON } from './core'
 
 describe('BPETokenizer', () => {
   describe('build up token table from chars in corpus', () => {
@@ -79,6 +79,33 @@ describe('BPETokenizer', () => {
         }
         expect(tokenizer.token_table[i]).to.deep.equal(token)
       }
+    })
+  })
+
+  describe('json export/import', () => {
+    let json: BPETokenizerJSON
+    before(() => {
+      let bpeTokenizer = new BPETokenizer()
+      bpeTokenizer.addToCorpus('hello')
+      json = bpeTokenizer.toJSON()
+    })
+    it('should export to JSON in compact format', () => {
+      expect(json).to.deep.equal({
+        version: 'exp',
+        chars: ['h', 'e', 'l', 'o'],
+        weights: [1, 1, 2, 1],
+        original_weights: [1, 1, 2, 1],
+      })
+    })
+    it('should import from JSON', () => {
+      let bpeTokenizer = new BPETokenizer()
+      bpeTokenizer.fromJSON(json)
+      expect(bpeTokenizer.token_table.length).to.equal(4)
+      expect(bpeTokenizer.token_table[0].chars).to.equal('h')
+      expect(bpeTokenizer.token_table[1].chars).to.equal('e')
+      expect(bpeTokenizer.token_table[2].chars).to.equal('l')
+      expect(bpeTokenizer.token_table[3].chars).to.equal('o')
+      expect(bpeTokenizer.toJSON()).to.deep.equal(json)
     })
   })
 })
