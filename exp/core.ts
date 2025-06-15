@@ -17,7 +17,11 @@ export type BPETokenizerJSON = {
   chars: string[]
   weights: number[]
   original_weights: number[]
+  merge_from_codes: string[]
+  merge_to_codes: string[]
 }
+
+export type MergeTokens = [a: Token, b: Token, c: Token]
 
 export class BPETokenizer {
   /** store all tokens */
@@ -29,8 +33,11 @@ export class BPETokenizer {
   /** index to lookup token by code (encoded index) */
   code_to_token: Record<string, Token> = Object.create(null)
 
-  /** added by `addToCorpus()` */
+  /** added by `addToCorpus()` and `restoreToCorpus()` */
   corpus_in_code: string[] = []
+
+  /** added by `merge()` */
+  merge_codes: [from_code: string, to_code: string][] = []
 
   addToCorpus(content: string) {
     let { token_table, char_to_token, code_to_token } = this
@@ -59,23 +66,29 @@ export class BPETokenizer {
     this.corpus_in_code.push(sample_in_code)
   }
 
+  /** can be used after fromJSON() to resume merging */
   restoreToCorpus(content: string) {
-    let { char_to_token } = this
-    let sample_in_code = ''
-    for (let char of content) {
-      let token = char_to_token[char]
-      if (!token) {
-        throw new Error(`char not found: ${JSON.stringify(char)}`)
-      }
-      sample_in_code += token.code
-    }
+    let sample_in_code = this.encodeToCode(content)
     this.corpus_in_code.push(sample_in_code)
+  }
+
+  encodeToCode(content_in_chars: string) {
+    let { char_to_token } = this
+    let content_in_code = ''
+    for (let char of content_in_chars) {
+      let token = char_to_token[char]
+      content_in_code += token.code
+    }
+    for (let [from, to] of this.merge_codes) {
+      content_in_code = content_in_code.replaceAll(from, to)
+    }
+    return content_in_code
   }
 
   findNextMerge(options?: {
     /** max number of chars of the merged token */
     max_length?: number
-  }) {
+  }): MergeTokens | null {
     let max_length = options?.max_length || Number.MAX_SAFE_INTEGER
     let { code_to_token } = this
     let index = this.token_table.length
@@ -130,6 +143,24 @@ export class BPETokenizer {
     return max_c ? ([max_a!, max_b!, max_c!] as const) : null
   }
 
+  mergeTokens(merge: MergeTokens) {
+    let { corpus_in_code } = this
+    let [a, b, c] = merge
+    debugger
+    a.weight -= c.weight
+    b.weight -= c.weight
+    this.token_table.push(c)
+    this.char_to_token[c.chars] = c
+    this.code_to_token[c.code] = c
+    let from = a.code + b.code
+    let to = c.code
+    this.merge_codes.push([from, to])
+    let n = corpus_in_code.length
+    for (let i = 0; i < n; i++) {
+      corpus_in_code[i] = corpus_in_code[i].replaceAll(from, to)
+    }
+  }
+
   toJSON(): BPETokenizerJSON {
     let { token_table } = this
     let json: BPETokenizerJSON = {
@@ -137,18 +168,25 @@ export class BPETokenizer {
       chars: [],
       weights: [],
       original_weights: [],
+      merge_from_codes: [],
+      merge_to_codes: [],
     }
     for (let token of token_table) {
       json.chars.push(token.chars)
       json.weights.push(token.weight)
       json.original_weights.push(token.original_weight)
     }
+    for (let [from, to] of this.merge_codes) {
+      json.merge_from_codes.push(from)
+      json.merge_to_codes.push(to)
+    }
     return json
   }
 
   fromJSON(json: BPETokenizerJSON) {
     let { token_table, char_to_token, code_to_token } = this
-    let { chars, weights, original_weights } = json
+    let { chars, weights, original_weights, merge_from_codes, merge_to_codes } =
+      json
     token_table.length = 0
     let n = json.chars.length
     for (let i = 0; i < n; i++) {
@@ -164,6 +202,12 @@ export class BPETokenizer {
       token_table[i] = token
       char_to_token[char] = token
       code_to_token[code] = token
+    }
+    n = merge_from_codes.length
+    for (let i = 0; i < n; i++) {
+      let from = merge_from_codes[i]
+      let to = merge_to_codes[i]
+      this.merge_codes.push([from, to])
     }
   }
 }
