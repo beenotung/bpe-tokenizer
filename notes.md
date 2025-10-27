@@ -1,0 +1,3 @@
+- core.ts: the original implementation of the BPE tokenizer
+- exp: try to speed up using nested Map
+- exp2: try to speed up using single-level Dictionary and cache corpus indices in the MergeCandidate
