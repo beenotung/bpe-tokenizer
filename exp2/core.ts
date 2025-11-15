@@ -33,12 +33,93 @@ export type MergeUntilOptions = FindMergeCandidateOptions & {
   ) => void
 }
 
+export type BPETokenizerJSON = {
+  version: 'exp2'
+  /** the rest of fields are like parallel arrays for more compact representation */
+  chars: string[]
+  weights: number[]
+  total_occurrences: number[]
+  /** sequence of: a + b -> c */
+  merges: string[]
+}
+
 export class BPETokenizer {
   token_table: Token[] = []
   char_to_token: Record<string, Token> = Object.create(null)
   code_to_token: Record<string, Token> = Object.create(null)
 
+  merges: [a: Token, b: Token, c: Token][] = []
+
   corpus_codes: string[] = []
+
+  /**
+   * @description export token table for storage or network transfer
+   * - the result can be used in `fromJSON()` to restore the tokenizer
+   * - the corpus are not included
+   */
+  toJSON(): BPETokenizerJSON {
+    let { token_table } = this
+
+    let chars: string[] = []
+    let weights: number[] = []
+    let total_occurrences: number[] = []
+    for (let token of token_table) {
+      chars.push(token.chars)
+      weights.push(token.weight)
+      total_occurrences.push(token.total_occurrence)
+    }
+
+    let merges: string[] = []
+    for (let [a, b, c] of this.merges) {
+      merges.push(a.code + b.code + c.code)
+    }
+
+    return {
+      version: 'exp2',
+      chars,
+      weights,
+      total_occurrences,
+      merges,
+    }
+  }
+
+  fromJSON(json: BPETokenizerJSON) {
+    if (json.version !== 'exp2') {
+      throw new Error(`expected version: exp2, got: ${json.version}`)
+    }
+    this.token_table.length = 0
+    this.char_to_token = Object.create(null)
+    this.code_to_token = Object.create(null)
+    this.merges.length = 0
+    this.corpus_codes.length = 0
+    let { chars, weights, total_occurrences, merges } = json
+    for (let i = 0; i < chars.length; i++) {
+      let token = {
+        chars: chars[i],
+        weight: weights[i],
+        total_occurrence: total_occurrences[i],
+        code: indexToCode(i),
+        index: i,
+      }
+      this.addToken(token)
+    }
+    for (let merge of merges) {
+      let [a_code, b_code, c_code] = merge.split('')
+      let a = this.code_to_token[a_code]
+      if (!a) {
+        throw new Error(`token not found, a_code: ${a_code}`)
+      }
+      let b = this.code_to_token[b_code]
+      if (!b) {
+        throw new Error(`token not found, b_code: ${b_code}`)
+      }
+      let c = this.code_to_token[c_code]
+      if (!c) {
+        throw new Error(`token not found, c_code: ${c_code}`)
+      }
+      this.merges.push([a, b, c])
+    }
+  }
 
   addToken(token: Token) {
     this.token_table[token.index] = token
@@ -144,6 +225,7 @@ export class BPETokenizer {
     a.weight -= c_weight
     b.weight -= c_weight
     this.addToken(c)
+    this.merges.push([a, b, c])
 
     let from_code = a.code + b.code
     let to_code = c.code

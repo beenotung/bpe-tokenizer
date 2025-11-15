@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { BPETokenizer, indexToCode, Token } from './core'
+import { BPETokenizer, BPETokenizerJSON, indexToCode, Token } from './core'
 
 describe('BPETokenizer', () => {
   describe('build up token table from chars in corpus', () => {
@@ -72,6 +72,73 @@ describe('BPETokenizer', () => {
           index: i,
         })
       }
+    })
+  })
+
+  describe('json export/import', () => {
+    it('should export to JSON in compact format', () => {
+      let tokenizer = new BPETokenizer()
+      tokenizer.addToCorpus('hello')
+      let json = tokenizer.toJSON()
+      expect(json).deep.equal({
+        version: 'exp2',
+        chars: ['h', 'e', 'l', 'o'],
+        weights: [1, 1, 2, 1],
+        total_occurrences: [1, 1, 2, 1],
+        merges: [],
+      })
+    })
+    it('should import from JSON', () => {
+      let tokenizer = new BPETokenizer()
+      tokenizer.addToCorpus('hello')
+
+      let json = tokenizer.toJSON()
+      let new_tokenizer = new BPETokenizer()
+      new_tokenizer.fromJSON(json)
+      expect(new_tokenizer.toJSON()).deep.equal(json)
+    })
+    it('should include merge codes', () => {
+      let tokenizer = new BPETokenizer()
+      tokenizer.addToCorpus('abcdab')
+      let tokens = {
+        a: {
+          chars: 'a',
+          weight: 0,
+          total_occurrence: 2,
+          code: indexToCode(0),
+          index: 0,
+        },
+        b: {
+          chars: 'b',
+          weight: 0,
+          total_occurrence: 2,
+          code: indexToCode(1),
+          index: 1,
+        },
+        ab: {
+          chars: 'ab',
+          weight: 2,
+          total_occurrence: 2,
+          code: indexToCode(4),
+          index: 4,
+        },
+      } satisfies Record<string, Token>
+
+      let candidate = tokenizer.findMergeCandidate({
+        max_chars: 2,
+        min_weight: 2,
+      })!
+      expect(candidate).not.null
+      tokenizer.applyMergeCandidate(candidate)
+
+      let json = tokenizer.toJSON()
+      expect(json).deep.equal({
+        version: 'exp2',
+        chars: ['a', 'b', 'c', 'd', 'ab'],
+        weights: [0, 0, 1, 1, 2],
+        total_occurrences: [2, 2, 1, 1, 2],
+        merges: [tokens.a.code + tokens.b.code + tokens.ab.code],
+      })
     })
   })
 })
