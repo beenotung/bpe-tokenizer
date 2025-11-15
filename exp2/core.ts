@@ -19,6 +19,20 @@ export type MergeCandidate = {
   corpus_indices?: Set<number>
 }
 
+export type FindMergeCandidateOptions = {
+  max_chars: number
+  min_weight: number
+}
+
+export type MergeUntilOptions = FindMergeCandidateOptions & {
+  max_iterations: number
+  on_candidate?: (
+    candidate: MergeCandidate,
+    iteration: number,
+    controller: { stop(): void },
+  ) => void
+}
+
 export class BPETokenizer {
   token_table: Token[] = []
   char_to_token: Record<string, Token> = Object.create(null)
@@ -56,7 +70,7 @@ export class BPETokenizer {
     this.corpus_codes.push(corpus_code)
   }
 
-  findMergeCandidate(options: { max_chars: number; min_weight: number }) {
+  findMergeCandidate(options: FindMergeCandidateOptions) {
     let { max_chars, min_weight } = options
 
     // a.code + b.code -> c
@@ -150,6 +164,24 @@ export class BPETokenizer {
           corpus_index
         ].replaceAll(from_code, to_code)
       }
+    }
+  }
+
+  mergeUntil(options: MergeUntilOptions) {
+    let { max_iterations, on_candidate } = options
+    let controller = {
+      stop() {
+        max_iterations = 0
+      },
+    }
+    for (let iteration = 0; iteration < max_iterations; iteration++) {
+      let candidate = this.findMergeCandidate(options)
+      if (!candidate) break
+      if (on_candidate) {
+        on_candidate(candidate, iteration, controller)
+        if (max_iterations === 0) break
+      }
+      this.applyMergeCandidate(candidate)
     }
   }
 }
