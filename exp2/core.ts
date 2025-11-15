@@ -186,6 +186,6 @@ export class BPETokenizer {
   }
 }
 
-function indexToCode(index: number) {
+export function indexToCode(index: number) {
   return String.fromCodePoint(index + 1)
 }
