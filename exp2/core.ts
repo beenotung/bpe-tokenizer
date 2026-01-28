@@ -157,6 +157,27 @@ export class BPETokenizer {
     this.corpus_codes.push(corpus_code)
   }
 
+  /** Can be used after fromJSON() to resume merging.
+   * Similar to addToCorpus(), but the token weights are not updated.
+   */
+  restoreToCorpus(content: string) {
+    let corpus_code = this.encodeToCode(content)
+    this.corpus_codes.push(corpus_code)
+  }
+
+  encodeToCode(content: string): string {
+    let { char_to_token } = this
+    let content_in_code = ''
+    for (let char of content) {
+      let token = char_to_token[char]
+      content_in_code += token.code
+    }
+    for (let [a, b, c] of this.merges) {
+      content_in_code = content_in_code.replaceAll(a.code + b.code, c.code)
+    }
+    return content_in_code
+  }
+
   findMergeCandidate(
     options: FindMergeCandidateOptions,
   ): MergeCandidate | null {

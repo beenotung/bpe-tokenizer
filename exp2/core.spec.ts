@@ -141,6 +141,89 @@ describe('BPETokenizer', () => {
       })
     })
   })
+
+  describe('merging tokens', () => {
+    let corpus = 'abcdab'
+    let codes = {
+      a: String.fromCodePoint(1),
+      b: String.fromCodePoint(2),
+      c: String.fromCodePoint(3),
+      d: String.fromCodePoint(4),
+      ab: String.fromCodePoint(5),
+    }
+
+    it('should find pair with max occurrence', () => {
+      let tokenizer = new BPETokenizer()
+      tokenizer.addToCorpus(corpus)
+      let candidate = tokenizer.findMergeCandidate({
+        max_chars: 2,
+        min_weight: 2,
+      })!
+      expect(candidate).not.null
+      let { a, b, c } = candidate
+      expect(a.chars).to.equal('a')
+      expect(b.chars).to.equal('b')
+      expect(c.chars).to.equal('ab')
+      expect(c.weight).to.equal(2)
+      expect(c.total_occurrence).to.equal(2)
+      expect(c.code).to.equal(codes.ab)
+      expect(c.index).to.equal(4) // index starts from 0
+    })
+
+    it('should merge tokens and update corpus', () => {
+      let tokenizer = new BPETokenizer()
+
+      tokenizer.addToCorpus(corpus)
+      expect(tokenizer.corpus_codes).to.deep.equal([
+        codes.a + codes.b + codes.c + codes.d + codes.a + codes.b,
+      ])
+
+      let candidate = tokenizer.findMergeCandidate({
+        max_chars: 2,
+        min_weight: 2,
+      })!
+      tokenizer.applyMergeCandidate(candidate)
+      expect(tokenizer.corpus_codes).to.deep.equal([
+        codes.ab + codes.c + codes.d + codes.ab,
+      ])
+    })
+
+    it('should resume merged tokens from JSON', () => {
+      let tokenizer = new BPETokenizer()
+      tokenizer.addToCorpus(corpus)
+      expect(tokenizer.token_table.length).to.equal(4)
+
+      let merge = tokenizer.findMergeCandidate({
+        max_chars: 2,
+        min_weight: 2,
+      })!
+      tokenizer.applyMergeCandidate(merge)
+      expect(tokenizer.token_table.length).to.equal(5)
+
+      let json = tokenizer.toJSON()
+      tokenizer = new BPETokenizer()
+      tokenizer.fromJSON(json)
+      expect(tokenizer.token_table.length).to.equal(5)
+    })
+
+    it('should restore corpus', () => {
+      let tokenizer = new BPETokenizer()
+      tokenizer.addToCorpus(corpus)
+      let merge = tokenizer.findMergeCandidate({
+        max_chars: 2,
+        min_weight: 2,
+      })!
+      tokenizer.applyMergeCandidate(merge)
+      let json = tokenizer.toJSON()
+
+      tokenizer = new BPETokenizer()
+      tokenizer.fromJSON(json)
+      tokenizer.restoreToCorpus(corpus)
+      expect(tokenizer.corpus_codes).to.deep.equal([
+        codes.ab + codes.c + codes.d + codes.ab,
+      ])
+    })
+  })
 })
 
 function expectToken(tokenizer: BPETokenizer, token: Token) {
