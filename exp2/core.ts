@@ -39,7 +39,9 @@ export type BPETokenizerJSON = {
   chars: string[]
   weights: number[]
   total_occurrences: number[]
-  /** sequence of: a + b -> c */
+  /** sequence of: a + b -> c,
+   * encoded as a.code + b.code,
+   * c.code can be auto inferred */
   merges: string[]
 }
 
@@ -70,8 +72,8 @@ export class BPETokenizer {
     }
 
     let merges: string[] = []
-    for (let [a, b, c] of this.merges) {
-      merges.push(a.code + b.code + c.code)
+    for (let [a, b] of this.merges) {
+      merges.push(a.code + b.code)
     }
 
     return {
@@ -103,8 +105,10 @@ export class BPETokenizer {
       }
       this.addToken(token)
     }
+    /** starts from the number of single-char tokens */
+    let c_index = chars.length - merges.length
     for (let merge of merges) {
-      let [a_code, b_code, c_code] = merge.split('')
+      let [a_code, b_code] = merge.split('')
       let a = this.code_to_token[a_code]
       if (!a) {
         throw new Error(`token not found, a_code: ${a_code}`)
@@ -113,11 +117,13 @@ export class BPETokenizer {
       if (!b) {
         throw new Error(`token not found, b_code: ${b_code}`)
       }
+      let c_code = indexToCode(c_index)
       let c = this.code_to_token[c_code]
       if (!c) {
         throw new Error(`token not found, c_code: ${c_code}`)
       }
       this.merges.push([a, b, c])
+      c_index++
     }
   }
 

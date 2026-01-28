@@ -137,7 +137,7 @@ describe('BPETokenizer', () => {
         chars: ['a', 'b', 'c', 'd', 'ab'],
         weights: [0, 0, 1, 1, 2],
         total_occurrences: [2, 2, 1, 1, 2],
-        merges: [tokens.a.code + tokens.b.code + tokens.ab.code],
+        merges: [tokens.a.code + tokens.b.code],
       })
     })
   })
