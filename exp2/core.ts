@@ -157,7 +157,9 @@ export class BPETokenizer {
     this.corpus_codes.push(corpus_code)
   }
 
-  findMergeCandidate(options: FindMergeCandidateOptions) {
+  findMergeCandidate(
+    options: FindMergeCandidateOptions,
+  ): MergeCandidate | null {
     let { max_chars, min_weight } = options
 
     // a.code + b.code -> c
@@ -165,7 +167,7 @@ export class BPETokenizer {
 
     let c_index = this.token_table.length
     let c_code = indexToCode(c_index)
-    let max_candidate: MergeCandidate | undefined
+    let max_candidate: MergeCandidate | null = null
     for (
       let corpus_index = 0;
       corpus_index < this.corpus_codes.length;
